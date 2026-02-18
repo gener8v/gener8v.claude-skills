@@ -1,0 +1,19 @@
+{
+  "name": "gener8v-claude-skills",
+  "owner": {
+    "name": "gener8v"
+  },
+  "metadata": {
+    "description": "A structured pipeline for turning ideas into implementable work — from PRD through specification, constraints, dependencies, and ticket breakdown.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "gener8v-claude-skills",
+      "source": "./",
+      "description": "A structured pipeline for turning ideas into implementable work — from PRD through specification, constraints, dependencies, and ticket breakdown.",
+      "version": "0.1.0",
+      "strict": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "gener8v-claude-skills",
+  "description": "A structured pipeline for turning ideas into implementable work — from PRD through specification, constraints, dependencies, and ticket breakdown.",
+  "version": "0.1.0",
+  "author": {
+    "name": "gener8v"
+  },
+  "homepage": "https://github.com/gener8v/gener8v.claude-skills",
+  "repository": "https://github.com/gener8v/gener8v.claude-skills",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "slash-commands",
+    "claude-code"
+  ]
+}
