@@ -51,8 +51,12 @@ subsections. Each requirement should be atomic and testable.]
 
 ### [Subsection Name]
 
-- **REQ-001**: The system should [verb] [what] [conditions/context]
-- **REQ-002**: The system should...
+- **[XX]-REQ-001**: The system should [verb] [what] [conditions/context]
+- **[XX]-REQ-002**: The system should...
+
+[XX] is a 2-4 letter prefix derived from the capability area name
+(e.g., SR for Search & Retrieval, DI for Documentation Ingestion).
+This prefix ensures requirement IDs are unique across the project.
 
 ## Behaviors & Rules
 
@@ -115,10 +119,12 @@ Describe what happens, not how it looks.
 ### Explicit Edge Cases
 Common failure modes and boundary conditions should be called out explicitly. If unsure, add to Open Questions.
 
-### Numbered for Traceability
-Requirements use REQ-XXX identifiers for reference in tickets and test cases.
+### Namespaced for Traceability
+Requirements use [PREFIX]-REQ-XXX identifiers (e.g., SR-REQ-001 for Search & Retrieval). The prefix is derived from the capability area name — typically the first letter of each word or the first 2-4 letters. This ensures requirement IDs are unique across the entire project, preventing ambiguity when tickets, constraints, or audits reference requirements from different specifications.
 
 ## Process
+
+0. **Validate Input**: Confirm `.gener8v/prd.md` exists and contains a `## Functional Capabilities` section with `###` subsections. If the PRD is missing, stop and recommend running the Planning skill. If the target capability area is not found in the PRD, inform the user and list the available areas.
 
 1. **Extract Context**: Identify the Capability Area and its relationship to parent PRD and sibling capabilities.
 2. **Expand Requirements**: Decompose each bullet into atomic, testable requirements.
@@ -160,22 +166,22 @@ Defines how support agents search documentation using natural language and recei
 
 ### Query Processing
 
-- **REQ-001**: The system should accept free-text natural language questions as search input
-- **REQ-002**: The system should accept queries of at least 500 characters
-- **REQ-003**: The system should reject empty or whitespace-only queries with a clear message
+- **SR-REQ-001**: The system should accept free-text natural language questions as search input
+- **SR-REQ-002**: The system should accept queries of at least 500 characters
+- **SR-REQ-003**: The system should reject empty or whitespace-only queries with a clear message
 
 ### Search Execution
 
-- **REQ-004**: The system should return documentation excerpts that are relevant to the query
-- **REQ-005**: The system should rank results by relevance, with the most relevant result first
-- **REQ-006**: The system should return relevant results even when the query uses different terminology than the source documentation
-- **REQ-007**: The system should return results from all indexed documentation sources, not just a single source
+- **SR-REQ-004**: The system should return documentation excerpts that are relevant to the query
+- **SR-REQ-005**: The system should rank results by relevance, with the most relevant result first
+- **SR-REQ-006**: The system should return relevant results even when the query uses different terminology than the source documentation
+- **SR-REQ-007**: The system should return results from all indexed documentation sources, not just a single source
 
 ### Source Attribution
 
-- **REQ-008**: The system should indicate the source document title for each result
-- **REQ-009**: The system should provide a stable reference to the source location for each result
-- **REQ-010**: The system should attribute results consistently regardless of which documentation source they originate from
+- **SR-REQ-008**: The system should indicate the source document title for each result
+- **SR-REQ-009**: The system should provide a stable reference to the source location for each result
+- **SR-REQ-010**: The system should attribute results consistently regardless of which documentation source they originate from
 
 ## Behaviors & Rules
 
@@ -236,12 +242,20 @@ Defines how support agents search documentation using natural language and recei
 **Downstream:**
 - **Constraints Skill**: Analyzes for technical, compliance, or operational constraints
 - **Dependencies Skill**: Maps dependencies between capabilities and external systems
+- **Technical Design Skill**: Translates requirements into architecture decisions and component design
 - **Ticket Breakdown Skill**: Decomposes requirements into implementable work items
+
+## Revisions
+
+- Re-running this skill overwrites the specification file for the target capability area
+- Downstream artifacts that reference this specification's requirements (constraints, technical designs, tickets) become potentially stale
+- If requirements are renumbered, all downstream references to the old IDs must be updated
+- If the PRD's capability area description changes, compare the new and existing specification to determine whether a full regeneration or targeted update is appropriate
 
 ## Notes
 
 - Generate one specification per Capability Area; do not combine multiple areas
-- Requirements should be numbered sequentially within each specification
+- Requirements should be numbered sequentially within each specification, using the capability area prefix
 - Open Questions from source PRD relevant to this capability should be carried forward
 - This skill does not define acceptance criteria—that occurs during Ticket Breakdown
 - Keep specifications under ~2000 words; split complex capabilities if needed

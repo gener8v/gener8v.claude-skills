@@ -24,6 +24,12 @@ Use this skill when:
 
 The output file is the single entry point for all downstream skills. Downstream skills reference this path to locate the PRD.
 
+### System Context (Optional)
+
+After producing the PRD, ask the user whether they want to provide system context — information about their existing technology stack, infrastructure, team capabilities, and organizational constraints. If provided, write to `.gener8v/context.md` as freeform markdown.
+
+This file is not required for the pipeline to proceed, but significantly improves the quality of Constraints analysis and Technical Design. Without it, those skills infer constraints from functional documents alone.
+
 ## Output Format
 
 Produce a markdown document with the following structure:
@@ -197,7 +203,16 @@ This skill produces output that feeds into:
 - **Specification Skill**: Takes each Capability Area and produces detailed functional specifications
 - **Constraints Skill**: Analyzes the PRD for technical, compliance, or integration constraints
 - **Dependencies Skill**: Maps dependencies between capability areas and external systems
+- **Technical Design Skill**: Translates specifications and constraints into architecture decisions
 - **Ticket Breakdown Skill**: Decomposes specified capabilities into implementable work items
+- **Orchestrate Skill**: Reads the PRD to determine pipeline status and next steps
+
+## Revisions
+
+- Re-running this skill overwrites `.gener8v/prd.md` — all downstream artifacts (specifications, constraints, dependencies, technical designs, tickets) become potentially stale
+- If the change is limited to one capability area, consider updating the PRD manually and re-running only the affected downstream skills
+- If capability areas are added or removed, the Orchestrate skill can identify which downstream artifacts need to be created or are now orphaned
+- System context (`.gener8v/context.md`) does not need to be regenerated when the PRD changes unless the project scope shifts significantly
 
 ## Notes
 

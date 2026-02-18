@@ -15,13 +15,18 @@ Use this skill when:
 
 ## Input
 
-**Source:** A Specification, plus the corresponding Constraints analysis and Dependency Map
+**Source:** A Specification, plus the corresponding Constraints analysis, Dependency Map, and Technical Design
 **Read from:**
 - Specification: `.gener8v/specifications/[capability-area-slug].md`
 - Constraints: `.gener8v/constraints/[capability-area-slug].md` (if available)
 - Dependency Map: `.gener8v/dependencies/dependency-map.md` (if available)
+- Technical Design: `.gener8v/technical-design/[capability-area-slug].md` or `.gener8v/technical-design/system-design.md` (if available)
 
-**Expects:** At minimum, a Specification with numbered requirements (REQ-XXX). If Constraints or Dependency Map files are not available, note "Not yet performed" in the Source Context section of the output and proceed without them.
+**Expects:** At minimum, a Specification with numbered requirements ([PREFIX]-REQ-XXX). If Constraints, Dependency Map, or Technical Design files are not available, note "Not yet performed" in the Source Context section of the output and proceed without them.
+
+**If input is missing or malformed:**
+- If no specification exists for the target capability area, stop and recommend running the Specification skill first
+- If constraints, dependencies, or technical design are missing, proceed but note the gap — tickets will lack constraint-informed criteria, dependency ordering, or architecture context respectively
 
 ## Output
 
@@ -49,6 +54,7 @@ how they cluster, and any notable sequencing from the dependency analysis.]
 **Specification:** [Title of the specification being decomposed]
 **Constraints Analysis:** [Title, or "Not yet performed"]
 **Dependency Map:** [Title, or "Not yet performed"]
+**Technical Design:** [Title, or "Not yet performed"]
 
 ## Tickets
 
@@ -57,8 +63,8 @@ how they cluster, and any notable sequencing from the dependency analysis.]
 **Summary:** [1-2 sentences describing what this ticket accomplishes]
 
 **Requirements Covered:**
-- REQ-001: [Brief description]
-- REQ-002: [Brief description]
+- [XX]-REQ-001: [Brief description]
+- [XX]-REQ-002: [Brief description]
 
 **Prior Art:** [What to read/understand before starting. For tickets with
 no dependencies, point to relevant pipeline documents. For tickets that
@@ -191,12 +197,12 @@ Every ticket must include an **Output** section that describes the files or dire
 ### Input
 
 Decomposing the "Search & Retrieval" Specification with requirements:
-- REQ-001: Accept natural language questions as input
-- REQ-002: Return relevant documentation excerpts ranked by relevance
-- REQ-003: Indicate the source document for each result
-- REQ-004: Handle questions even when exact terminology doesn't match
+- SR-REQ-001: Accept natural language questions as input
+- SR-REQ-002: Return relevant documentation excerpts ranked by relevance
+- SR-REQ-003: Indicate the source document for each result
+- SR-REQ-004: Handle questions even when exact terminology doesn't match
 
-With constraints TC-001 (semantic search needed for REQ-004) and TC-002 (stable identifiers needed for REQ-003), and dependency DEP-001 (requires indexed documentation from Documentation Ingestion).
+With constraints TC-001 (semantic search needed for SR-REQ-004) and TC-002 (stable identifiers needed for SR-REQ-003), and dependency DEP-001 (requires indexed documentation from Documentation Ingestion).
 
 ### Output
 
@@ -220,10 +226,10 @@ Four tickets decomposed from the Search & Retrieval specification. The work form
 **Summary:** Build the interface that accepts natural language questions from support agents and passes them to the search pipeline.
 
 **Requirements Covered:**
-- REQ-001: Accept natural language questions as input
+- SR-REQ-001: Accept natural language questions as input
 
 **Prior Art:**
-- Read: `.gener8v/specifications/search-and-retrieval.md` — REQ-001 for full requirement context
+- Read: `.gener8v/specifications/search-and-retrieval.md` — SR-REQ-001 for full requirement context
 - Read: `.gener8v/dependencies/dependency-map.md` — understand where this capability sits in the system
 
 **Acceptance Criteria:**
@@ -250,10 +256,10 @@ Four tickets decomposed from the Search & Retrieval specification. The work form
 **Summary:** Set up the search index to support semantic similarity matching, enabling results even when query terminology differs from document terminology.
 
 **Requirements Covered:**
-- REQ-004: Handle questions even when exact terminology doesn't match
+- SR-REQ-004: Handle questions even when exact terminology doesn't match
 
 **Prior Art:**
-- Read: `.gener8v/specifications/search-and-retrieval.md` — REQ-004 for full requirement context
+- Read: `.gener8v/specifications/search-and-retrieval.md` — SR-REQ-004 for full requirement context
 - Read: `.gener8v/constraints/search-and-retrieval.md` — TC-001 for semantic search constraint details
 - Read: `.gener8v/dependencies/dependency-map.md` — SR-001 (Document Index shared resource) for index schema coordination with Documentation Ingestion
 
@@ -284,12 +290,12 @@ Four tickets decomposed from the Search & Retrieval specification. The work form
 **Summary:** Build the ranking logic that orders search results by relevance score so the most useful documentation appears first.
 
 **Requirements Covered:**
-- REQ-002: Return relevant documentation excerpts ranked by relevance
+- SR-REQ-002: Return relevant documentation excerpts ranked by relevance
 
 **Prior Art:**
 - Read: TICKET-001 output at `src/search/query-input.{ext}` — understand the query interface contract (how queries arrive)
 - Read: TICKET-002 output at `src/search/index-client.{ext}` — understand the index query interface (how raw results are returned and what fields are available, including relevance scores)
-- Read: `.gener8v/specifications/search-and-retrieval.md` — REQ-002 for full requirement context
+- Read: `.gener8v/specifications/search-and-retrieval.md` — SR-REQ-002 for full requirement context
 
 **Acceptance Criteria:**
 - [ ] Results are returned in descending order of relevance score
@@ -315,7 +321,7 @@ Four tickets decomposed from the Search & Retrieval specification. The work form
 **Summary:** Attach source document identification and navigation references to each search result so agents can trace results back to their origin.
 
 **Requirements Covered:**
-- REQ-003: Indicate the source document for each result
+- SR-REQ-003: Indicate the source document for each result
 
 **Prior Art:**
 - Read: TICKET-003 output at `src/search/ranking.{ext}` — understand the ranked result structure that this ticket extends with source attribution fields
@@ -378,9 +384,17 @@ TICKET-002 ──┘
 - **Specification Skill**: Provides the detailed requirements that are decomposed into tickets
 - **Constraints Skill**: Provides constraints that shape acceptance criteria and surface implementation boundaries
 - **Dependencies Skill**: Provides sequencing information and external dependency awareness
+- **Technical Design Skill**: Provides architecture decisions, component boundaries, and interface contracts that inform ticket scope and Prior Art references
 
 **Downstream:**
 - This is the final skill in the pipeline. Output is consumed by implementation teams or further task management tooling.
+
+## Revisions
+
+- Re-run this skill when the source specification, constraints, dependencies, or technical design change in ways that affect ticket scope or ordering
+- When re-running, compare with the existing ticket breakdown — some tickets may survive unchanged while others need updating
+- If only a single requirement changes, consider updating the affected ticket(s) rather than regenerating the entire breakdown
+- If the technical design introduces new architecture decisions, tickets may need new acceptance criteria or Prior Art references
 
 ## Notes
 
@@ -390,4 +404,4 @@ TICKET-002 ──┘
 - Open questions from upstream skills that affect ticket definition should be listed; do not invent acceptance criteria to fill gaps left by unresolved questions
 - This skill does not assign tickets to individuals or teams
 - This skill does not estimate duration—size indicators communicate relative scope only
-- Revisit the breakdown if the Specification, Constraints, or Dependencies change materially
+- When a Technical Design is available, tickets should reference Architecture Decisions (AD-XXX) in their notes or constraints, and Prior Art should point to technical design documents alongside specifications

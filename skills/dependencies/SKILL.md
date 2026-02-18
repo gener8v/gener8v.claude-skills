@@ -158,6 +158,8 @@ Do not impose sequencing that the dependencies don't require. If two capabilitie
 
 ## Process
 
+0. **Validate Input**: Confirm `.gener8v/prd.md` exists and contains multiple capability areas. If the PRD is missing, stop and recommend running the Planning skill. If only one capability area exists, note that internal dependency analysis is not applicable but external dependencies may still be relevant. Read any available specifications and constraints to enrich the analysis.
+
 1. **Inventory Capability Areas**: List all capability areas from the PRD and any Specifications produced.
 
 2. **Identify Internal Dependencies**: For each capability area, ask: "What does this need from other capability areas before it can start or complete?" Document each dependency with direction, type, and nature.
@@ -314,7 +316,15 @@ Documentation Ingestion → Search & Retrieval → Results Presentation
 - **Constraints Skill**: Provides constraints that may create or influence dependencies (especially Integration and Technical constraints)
 
 **Downstream:**
+- **Technical Design Skill**: Uses dependency information to inform component boundaries and interface design
 - **Ticket Breakdown Skill**: Uses sequencing and dependency information to order work items and define blockers
+
+## Revisions
+
+- Re-run this skill when capability areas are added, removed, or significantly changed in the PRD
+- Re-run when new specifications or constraints reveal dependencies not visible from the PRD alone
+- The dependency map is a single file covering the entire PRD — partial updates are possible but full regeneration is safer when multiple areas change
+- Downstream tickets that reference dependency IDs (DEP-XXX, EXT-XXX) become potentially stale when the dependency map changes
 
 ## Notes
 

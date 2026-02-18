@@ -22,6 +22,9 @@ Use this skill when:
 
 **Expects:** A structured document with functional requirements or capability descriptions to analyze for constraints.
 
+**Also reads (if available):**
+- System Context: `.gener8v/context.md` — technology stack, infrastructure, team capabilities, and organizational constraints. When present, this file grounds the analysis in the actual environment rather than inference alone. If not available, note "System context not provided" in the output and flag any constraints that depend on technology or infrastructure knowledge as assumptions.
+
 ## Output
 
 **Produces:** A constraints analysis document
@@ -135,6 +138,8 @@ Where possible, cite the source of a constraint (regulation name, API documentat
 
 ## Process
 
+0. **Validate Input**: Confirm the target document exists. If analyzing a specification, verify it contains numbered requirements. If the file is missing, stop and recommend the appropriate upstream skill. If `.gener8v/context.md` exists, read it for technology stack, infrastructure, and organizational context that grounds the analysis.
+
 1. **Identify Source Material**: Determine whether analyzing a PRD (broader, multiple capabilities) or a Specification (single capability, more detail). Adjust depth accordingly.
 
 2. **Scan for Technical Constraints**: Review requirements for implied infrastructure needs, performance boundaries, platform limitations, data volume assumptions, and technology prerequisites.
@@ -158,9 +163,9 @@ Where possible, cite the source of a constraint (regulation name, API documentat
 ### Input
 
 Analyzing the "Search & Retrieval" Specification from the Support Documentation Search System PRD, which includes requirements such as:
-- REQ-001: The system should accept natural language questions as input
-- REQ-003: The system should indicate the source document for each result
-- REQ-004: The system should handle questions even when exact terminology doesn't match
+- SR-REQ-001: The system should accept natural language questions as input
+- SR-REQ-003: The system should indicate the source document for each result
+- SR-REQ-004: The system should handle questions even when exact terminology doesn't match
 
 ### Output
 
@@ -178,25 +183,25 @@ Analysis of the Search & Retrieval specification surfaces constraints primarily 
 
 ## Technical Constraints
 
-- **TC-001**: Natural language matching (REQ-004) requires semantic search capability beyond keyword matching
+- **TC-001**: Natural language matching (SR-REQ-004) requires semantic search capability beyond keyword matching
   - *Rationale:* Terminology mismatch handling implies vector similarity or equivalent approach
-  - *Impact:* REQ-004, Documentation Ingestion capability
+  - *Impact:* SR-REQ-004, Documentation Ingestion capability
 
-- **TC-002**: Source document linking (REQ-003) requires documentation to retain stable, addressable identifiers
+- **TC-002**: Source document linking (SR-REQ-003) requires documentation to retain stable, addressable identifiers
   - *Rationale:* Deep links break if source systems reorganize content without redirects
-  - *Impact:* REQ-003, Results Presentation capability
+  - *Impact:* SR-REQ-003, Results Presentation capability
 
 ## Compliance & Regulatory Constraints
 
 - **CC-001**: If documentation contains customer data examples, search results must respect data access controls
   - *Rationale:* Support documentation sometimes includes sanitized customer scenarios that may contain PII
-  - *Impact:* REQ-001, REQ-003
+  - *Impact:* SR-REQ-001, SR-REQ-003
 
 ## Integration Constraints
 
 - **IC-001**: Existing documentation spans Confluence, PDF manuals, and a legacy help center with no unified API
   - *Rationale:* Each source has different access patterns and update mechanisms
-  - *Impact:* Documentation Ingestion capability, REQ-003 (source linking varies by system)
+  - *Impact:* Documentation Ingestion capability, SR-REQ-003 (source linking varies by system)
 
 - **IC-002**: The legacy help center does not support programmatic content extraction
   - *Rationale:* No API; content is rendered server-side with no export function
@@ -238,12 +243,20 @@ Analysis of the Search & Retrieval specification surfaces constraints primarily 
 ## Integration with Other Skills
 
 **Upstream:**
-- **Planning Skill**: Provides the PRD that may be analyzed at a high level
+- **Planning Skill**: Provides the PRD that may be analyzed at a high level, and optionally `.gener8v/context.md` for system context
 - **Specification Skill**: Provides the detailed specification that is the primary input
 
 **Downstream:**
 - **Dependencies Skill**: Uses constraints to identify external dependencies and sequencing impacts
+- **Technical Design Skill**: Uses constraints as boundaries that architecture decisions must respect
 - **Ticket Breakdown Skill**: Uses constraints to scope work items and define acceptance criteria boundaries
+
+## Revisions
+
+- Re-run this skill when the source specification or PRD changes in ways that affect constraints
+- Re-run when system context (`.gener8v/context.md`) is created or updated, as new technology or infrastructure information may reveal constraints not previously identified
+- Downstream technical designs and tickets that reference constraint IDs become potentially stale when constraints change
+- If only new constraints are added (existing IDs unchanged), downstream artifacts may only need additive updates rather than full regeneration
 
 ## Notes
 
@@ -252,3 +265,4 @@ Analysis of the Search & Retrieval specification surfaces constraints primarily 
 - Constraints should be revisited if the source PRD or Specification changes materially
 - This skill does not recommend solutions—it surfaces the problem space for decision-makers
 - When a constraint clearly blocks a requirement, flag it as a Risk rather than burying it in the category list
+- When system context is available, constraints should be grounded in specific technology and infrastructure details rather than generic assumptions

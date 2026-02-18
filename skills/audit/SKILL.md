@@ -18,9 +18,11 @@ Use this skill when:
 **Source:** One or more pipeline artifacts from `.gener8v/`
 **Read from:**
 - PRD: `.gener8v/prd.md`
+- System Context: `.gener8v/context.md`
 - Specifications: `.gener8v/specifications/*.md`
 - Constraints: `.gener8v/constraints/*.md`
 - Dependency Map: `.gener8v/dependencies/dependency-map.md`
+- Technical Design: `.gener8v/technical-design/*.md`
 - Tickets: `.gener8v/tickets/*.md`
 
 **Expects:** At least one artifact to exist. The skill adapts its checks based on what's available — auditing a PRD alone is valid, but auditing tickets without a specification is less useful and the skill will flag this.
@@ -141,7 +143,8 @@ These apply when auditing any individual artifact.
 #### Specification Checks
 - [ ] Overview is understandable without reading the source PRD
 - [ ] Source Context references the parent PRD and related capabilities
-- [ ] Every requirement has a REQ-XXX identifier
+- [ ] Every requirement has a [PREFIX]-REQ-XXX identifier with a consistent prefix
+- [ ] Requirement prefix is derived from the capability area name and is unique across specifications
 - [ ] Every requirement is atomic (no "and" combining two behaviors)
 - [ ] Every requirement is testable (no subjective language)
 - [ ] Requirements use "the system should..." framing
@@ -167,6 +170,15 @@ These apply when auditing any individual artifact.
 - [ ] Shared resources are documented with their coupling implications
 - [ ] External dependencies are flagged as risk dependencies
 
+#### Technical Design Checks
+- [ ] Every Architecture Decision (AD-XXX) has context, decision, rationale, and alternatives considered
+- [ ] Components trace back to requirements they serve
+- [ ] Interface contracts specify input, output, and error cases
+- [ ] Design respects constraints identified in the Constraints analysis
+- [ ] Technical risks are identified with likelihood, impact, and mitigation
+- [ ] Data model entities have clear purpose, structure, and relationships
+- [ ] Assumptions are documented and falsifiable
+
 #### Ticket Checks
 - [ ] Every requirement from the specification appears in at least one ticket
 - [ ] Every ticket has a Prior Art section pointing to specific files
@@ -176,22 +188,38 @@ These apply when auditing any individual artifact.
 - [ ] Dependency chain is acyclic
 - [ ] Backlog summary table is present and accurate
 - [ ] Ticket dependency chain visual matches the Depends On / Blocks fields
+- [ ] When a Technical Design exists, tickets reference relevant Architecture Decisions
 
 ### Cross-Stage Checks
 
 These apply when auditing across the pipeline.
 
+#### Coverage
 - [ ] Every capability area in the PRD has a corresponding specification
 - [ ] Every specification has a corresponding constraints analysis (or explicit deferral)
 - [ ] The dependency map covers all capability areas in the PRD
+- [ ] Technical design exists for capability areas with non-trivial architecture (or explicit deferral)
 - [ ] Every specification has a corresponding ticket breakdown
-- [ ] Every REQ-XXX in specifications traces to at least one ticket
+
+#### Traceability
+- [ ] Every [PREFIX]-REQ-XXX in specifications traces to at least one ticket
+- [ ] Requirement ID prefixes are unique across specifications (no two specs use the same prefix)
 - [ ] Constraint IDs referenced in tickets exist in the constraints analysis
 - [ ] Dependency IDs referenced in tickets exist in the dependency map
+- [ ] Architecture Decision IDs (AD-XXX) referenced in tickets exist in the technical design
+- [ ] Ticket Prior Art paths reference files that earlier tickets declare in their Output sections
+
+#### Consistency
 - [ ] Open questions are not duplicated across documents
 - [ ] Open questions resolved in downstream documents are marked resolved upstream
-- [ ] Ticket Prior Art paths reference files that earlier tickets declare in their Output sections
+- [ ] Constraint impacts reference requirement IDs that exist in the corresponding specification
 - [ ] No orphaned artifacts (files in `.gener8v/` that aren't referenced by anything)
+
+#### Staleness
+- [ ] Specifications still align with the current PRD capability area descriptions
+- [ ] Constraints analyses reflect the current specification requirements (not outdated IDs)
+- [ ] Tickets reference requirement IDs that still exist in the current specification
+- [ ] Technical design decisions are consistent with current constraints
 
 ---
 
@@ -275,10 +303,10 @@ Audited 5 artifacts across 4 pipeline stages. The pipeline is partially complete
 
 ---
 
-### FIND-002: REQ-003 in search-and-retrieval specification uses subjective language
+### FIND-002: SR-REQ-003 in search-and-retrieval specification uses subjective language
 
 **Severity:** Warning
-**Location:** `.gener8v/specifications/search-and-retrieval.md`, REQ-003
+**Location:** `.gener8v/specifications/search-and-retrieval.md`, SR-REQ-003
 **Description:** "The system should indicate the source document for each result in a user-friendly way" — "user-friendly" is not testable.
 **Impact:** Acceptance criteria derived from this requirement may be ambiguous.
 **Recommendation:** Reword to: "The system should indicate the source document title and location for each result."
@@ -303,27 +331,27 @@ Audited 5 artifacts across 4 pipeline stages. The pipeline is partially complete
 
 ### Capability Area → Specification Coverage
 
-| Capability Area (from PRD) | Specification Exists | Constraints Exists | Tickets Exist |
-|---------------------------|---------------------|-------------------|---------------|
-| Search & Retrieval | Yes | Yes | Yes |
-| Results Presentation | Yes | **No** | No |
-| Documentation Ingestion | **No** | No | No |
+| Capability Area (from PRD) | Spec | Constraints | Tech Design | Tickets |
+|---------------------------|------|-------------|-------------|---------|
+| Search & Retrieval | Yes | Yes | **No** | Yes |
+| Results Presentation | Yes | **No** | No | No |
+| Documentation Ingestion | **No** | No | No | No |
 
 ### Requirement Traceability
 
 | Requirement | Specification | Ticket(s) | Covered |
 |-------------|---------------|-----------|---------|
-| REQ-001 | search-and-retrieval.md | TICKET-001 | Yes |
-| REQ-002 | search-and-retrieval.md | TICKET-003 | Yes |
-| REQ-003 | search-and-retrieval.md | TICKET-004 | Yes |
-| REQ-004 | search-and-retrieval.md | TICKET-002 | Yes |
+| SR-REQ-001 | search-and-retrieval.md | TICKET-001 | Yes |
+| SR-REQ-002 | search-and-retrieval.md | TICKET-003 | Yes |
+| SR-REQ-003 | search-and-retrieval.md | TICKET-004 | Yes |
+| SR-REQ-004 | search-and-retrieval.md | TICKET-002 | Yes |
 
 ## Resolution Log
 
 | Finding | Decision | Action Taken | Artifact Updated |
 |---------|----------|-------------|-----------------|
 | FIND-001 | Approved | User will run Specification skill next | — |
-| FIND-002 | Approved | Reworded REQ-003 to remove subjective language | `.gener8v/specifications/search-and-retrieval.md` |
+| FIND-002 | Approved | Reworded SR-REQ-003 to remove subjective language | `.gener8v/specifications/search-and-retrieval.md` |
 | FIND-003 | Deferred | Will address after Documentation Ingestion specification is complete | — |
 ````
 
@@ -333,9 +361,10 @@ Audited 5 artifacts across 4 pipeline stages. The pipeline is partially complete
 
 **Upstream (audits output from):**
 - **Planning Skill**: Audits PRD for structure, completeness, and technical leakage
-- **Specification Skill**: Audits specifications for atomicity, testability, and traceability
+- **Specification Skill**: Audits specifications for atomicity, testability, namespacing, and traceability
 - **Constraints Skill**: Audits constraints for categorization, rationale, and impact mapping
 - **Dependencies Skill**: Audits dependency maps for completeness, circularity, and sequencing validity
+- **Technical Design Skill**: Audits architecture decisions for completeness, constraint compliance, and requirement traceability
 - **Ticket Breakdown Skill**: Audits tickets for coverage, Prior Art/Output completeness, and acceptance criteria quality
 
 **Downstream:**
@@ -358,6 +387,13 @@ When the user approves a fix, update the source artifact. Do not create parallel
 
 ### Audit Reports Are Records, Not Artifacts
 The audit report documents what was found and decided. It is not consumed by downstream skills. It exists for the user's reference and for traceability of decisions.
+
+## Revisions
+
+- Audit reports capture a point-in-time assessment — they do not auto-update when source artifacts change
+- After significant pipeline changes, re-run the audit to get a current assessment
+- Previous audit reports remain in `.gener8v/audits/` for reference; they are not overwritten unless the scope is identical
+- The Orchestrate skill tracks completeness (what exists); the Audit skill tracks quality (is it good) — they are complementary
 
 ## Notes
 
