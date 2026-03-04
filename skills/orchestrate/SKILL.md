@@ -34,6 +34,10 @@ Use this skill when:
    - Dependencies: `.gener8v/dependencies/dependency-map.md`
    - Technical Design: `.gener8v/technical-design/*.md`
    - Tickets: `.gener8v/tickets/*.md`
+   - Delivery Records: `.gener8v/delivery/*.md`
+   - Code Reviews: `.gener8v/reviews/*-code-review.md`
+   - Quality Reviews: `.gener8v/reviews/*-quality-review.md`
+   - Security Reviews: `.gener8v/reviews/*-security-review.md`
    - Audits: `.gener8v/audits/*.md`
 
 2. **Extract Capability Areas**: Read the PRD and identify all capability areas defined under `## Functional Capabilities`. These are the rows in the coverage matrix.
@@ -49,7 +53,11 @@ Use this skill when:
    - **Analyzing**: Specifications complete, constraints/dependencies in progress
    - **Designing**: Technical design in progress
    - **Breaking down**: Ticket breakdowns in progress
-   - **Complete**: All capability areas have tickets
+   - **Ready for delivery**: All capability areas have tickets, no delivery records yet
+   - **Delivering**: Some tickets have delivery records, not all
+   - **Delivered**: All tickets across all capability areas have delivery records
+   - **Reviewing**: Some delivered tickets have review reports (code review, quality review, or security review)
+   - **Reviewed**: All delivered tickets have all three review types completed
    - **Audited**: A pipeline audit has been completed
 
 6. **Detect Scale**: Count capability areas and adjust guidance:
@@ -78,11 +86,13 @@ Present the status to the user in this structure:
 
 ### Coverage
 
-| Capability Area | Spec | Constraints | Tech Design | Tickets |
-|----------------|------|-------------|-------------|---------|
-| [Area name]    | ✓/✗  | ✓/✗         | ✓/✗         | ✓/✗     |
+| Capability Area | Spec | Constraints | Tech Design | Tickets | Delivered | CR | QR | SEC |
+|----------------|------|-------------|-------------|---------|-----------|----|----|-----|
+| [Area name]    | ✓/✗  | ✓/✗         | ✓/✗         | ✓/✗     | [n/total] | [n/total] | [n/total] | [n/total] |
 
 **Dependency Map:** ✓/✗
+
+*Note: Delivered/CR/QR/SEC columns use `[completed]/[total tickets]` format since delivery and reviews happen per ticket, not per capability area.*
 
 ### Next Steps
 
@@ -108,7 +118,14 @@ This skill reports what exists and what's missing. It does not evaluate quality 
 Not every project needs every skill. Constraints, Technical Design, and Dependencies can be skipped for simple projects. Note skipped steps as recommendations but don't treat them as blockers. Only hard prerequisites (e.g., "specification required before tickets") are flagged as blockers.
 
 ### Fan-Out Awareness
-Skills that run per-capability-area (Specification, Constraints, Technical Design, Ticket Breakdown) create fan-out. Make the fan-out explicit: "3 of 5 capability areas have specifications. Run Specification on: Area D, Area E."
+Skills that run per-capability-area (Specification, Constraints, Technical Design, Ticket Breakdown) create fan-out. Delivery and reviews create even more fan-out — each ticket is a separate delivery, and each delivery spawns up to three reviews. Make the fan-out explicit: "3 of 5 capability areas have specifications. Run Specification on: Area D, Area E." For delivery stages: "Search & Retrieval: 2/4 tickets delivered. Next: Deliver TICKET-003 (unblocked by TICKET-001, TICKET-002)."
+
+### Delivery-Stage Guidance
+When the pipeline reaches the delivery stage, shift from capability-area-level tracking to ticket-level tracking. For each capability area with tickets:
+- Identify which tickets are Ready (all Depends On tickets delivered)
+- Recommend delivering the next ready ticket
+- After delivery, recommend running Code Review, Quality Review, and Security Review in parallel
+- After all three reviews resolve with approved verdicts, identify the next ready ticket
 
 ### Scale-Aware Guidance
 A 2-area project and a 12-area project need different approaches. For small projects, the full pipeline is straightforward. For large projects, recommend batching, parallelization, or sub-pipeline splits. Never give the same advice regardless of scale.

@@ -24,6 +24,10 @@ Use this skill when:
 - Dependency Map: `.gener8v/dependencies/dependency-map.md`
 - Technical Design: `.gener8v/technical-design/*.md`
 - Tickets: `.gener8v/tickets/*.md`
+- Delivery Records: `.gener8v/delivery/*.md`
+- Code Reviews: `.gener8v/reviews/*-code-review.md`
+- Quality Reviews: `.gener8v/reviews/*-quality-review.md`
+- Security Reviews: `.gener8v/reviews/*-security-review.md`
 
 **Expects:** At least one artifact to exist. The skill adapts its checks based on what's available — auditing a PRD alone is valid, but auditing tickets without a specification is less useful and the skill will flag this.
 
@@ -92,9 +96,9 @@ Produce a markdown document with the following structure:
 
 ### Capability Area → Specification Coverage
 
-| Capability Area (from PRD) | Specification Exists | Constraints Exists | Tickets Exist |
-|---------------------------|---------------------|-------------------|---------------|
-| [Area name] | Yes / No | Yes / No | Yes / No |
+| Capability Area (from PRD) | Spec | Constraints | Tech Design | Tickets | Delivered | CR | QR | SEC |
+|---------------------------|------|-------------|-------------|---------|-----------|----|----|-----|
+| [Area name] | Yes/No | Yes/No | Yes/No | Yes/No | [n/total] | [n/total] | [n/total] | [n/total] |
 
 ### Requirement Traceability
 
@@ -190,6 +194,36 @@ These apply when auditing any individual artifact.
 - [ ] Ticket dependency chain visual matches the Depends On / Blocks fields
 - [ ] When a Technical Design exists, tickets reference relevant Architecture Decisions
 
+#### Delivery Record Checks
+- [ ] Ticket reference is valid (ticket exists in the ticket breakdown)
+- [ ] All acceptance criteria from the ticket are addressed (marked satisfied or explicitly unsatisfied with reason)
+- [ ] Files Produced lists specific file paths
+- [ ] Every file listed in Files Produced actually exists in the codebase
+- [ ] Implementation Plan section is present (evidence of two-phase plan-then-implement process)
+- [ ] DEL-XXX decisions have context, decision, and rationale
+- [ ] Deviations from plan are documented (or explicitly "None")
+- [ ] Requirements Covered matches the source ticket's Requirements Covered
+
+#### Code Review Checks
+- [ ] Every acceptance criterion from the ticket appears in the Acceptance Criteria Coverage table
+- [ ] Every requirement from the ticket appears in the Requirement Coverage table
+- [ ] All CR-XXX findings have traceability to a pipeline artifact (REQ-XXX, AD-XXX, constraint ID, or acceptance criterion)
+- [ ] Verdict is present
+- [ ] Critical findings are resolved or have documented rationale for deferral
+
+#### Quality Review Checks
+- [ ] All four quality assessment categories (Code Organization, Readability, Error Handling, Test Coverage) are rated
+- [ ] QR-XXX findings have category, severity, and recommendation
+- [ ] Verdict is present
+
+#### Security Review Checks
+- [ ] All four security assessment categories (Input Validation, Auth/Authz, Data Protection, Configuration Security) are addressed
+- [ ] SEC-XXX findings with Medium+ severity have attack scenarios
+- [ ] OWASP references are present where applicable
+- [ ] Critical/High findings are resolved or have explicit risk acceptance with rationale
+- [ ] Compliance constraint (CC-XXX) violations are flagged at Critical severity
+- [ ] Verdict is present
+
 ### Cross-Stage Checks
 
 These apply when auditing across the pipeline.
@@ -209,6 +243,18 @@ These apply when auditing across the pipeline.
 - [ ] Architecture Decision IDs (AD-XXX) referenced in tickets exist in the technical design
 - [ ] Ticket Prior Art paths reference files that earlier tickets declare in their Output sections
 
+#### Delivery Traceability
+- [ ] Every ticket in a completed ticket breakdown has a corresponding delivery record
+- [ ] Delivery record file paths (Files Produced) match the ticket's Output section (or deviations are documented)
+- [ ] Predecessor tickets referenced in Depends On have delivery records before dependent tickets are delivered
+- [ ] DEL-XXX decision IDs are unique across delivery records
+
+#### Review Traceability
+- [ ] Every delivery record has corresponding code review, quality review, and security review reports (or explicit deferral documented)
+- [ ] Code review acceptance criteria table matches the source ticket's acceptance criteria
+- [ ] Security review compliance findings trace to constraint IDs (CC-XXX) that exist in the constraints analysis
+- [ ] Review verdicts are consistent — a "Changes Required" code review should block deployment regardless of other review outcomes
+
 #### Consistency
 - [ ] Open questions are not duplicated across documents
 - [ ] Open questions resolved in downstream documents are marked resolved upstream
@@ -220,6 +266,8 @@ These apply when auditing across the pipeline.
 - [ ] Constraints analyses reflect the current specification requirements (not outdated IDs)
 - [ ] Tickets reference requirement IDs that still exist in the current specification
 - [ ] Technical design decisions are consistent with current constraints
+- [ ] Delivery records reference tickets that still exist in the current ticket breakdown
+- [ ] Code reviews reference acceptance criteria that still exist in the current tickets
 
 ---
 
@@ -366,6 +414,10 @@ Audited 5 artifacts across 4 pipeline stages. The pipeline is partially complete
 - **Dependencies Skill**: Audits dependency maps for completeness, circularity, and sequencing validity
 - **Technical Design Skill**: Audits architecture decisions for completeness, constraint compliance, and requirement traceability
 - **Ticket Breakdown Skill**: Audits tickets for coverage, Prior Art/Output completeness, and acceptance criteria quality
+- **Delivery Skill**: Audits delivery records for acceptance criteria verification, file existence, decision documentation, and deviation tracking
+- **Code Review Skill**: Audits code reviews for traceability completeness, finding quality, and verdict consistency
+- **Quality Review Skill**: Audits quality reviews for assessment completeness and finding quality
+- **Security Review Skill**: Audits security reviews for OWASP compliance, attack scenario presence, risk acceptance documentation, and compliance constraint coverage
 
 **Downstream:**
 - This skill modifies source artifacts directly during interactive resolution
