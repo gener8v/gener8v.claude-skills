@@ -95,17 +95,17 @@ Performs an OWASP-informed, code-level security review. Checks for injection vul
 
 ### [Audit](./skills/audit/)
 
-Reviews pipeline artifacts for gaps, inconsistencies, missing coverage, and unresolved ambiguity. Works interactively with the user to resolve findings. Checks include namespaced ID traceability, cross-stage coverage, staleness detection, and technical design consistency.
+Reviews pipeline artifacts for gaps, inconsistencies, missing coverage, and unresolved ambiguity. Works interactively with the user to resolve findings. Covers the full pipeline: PRD structure, specification atomicity, constraint categorization, dependency completeness, technical design rationale, ticket coverage, delivery record verification, code review traceability, quality review completeness, and security review OWASP compliance. Cross-stage checks trace requirements from specification through delivery and verify that review verdicts are consistent.
 
 **Input:** Any artifact(s) in `.gener8v/`
 **Output:** Audit report with findings + direct updates to source artifacts
 
 ### [Orchestrate](./skills/orchestrate/)
 
-Reads the current state of `.gener8v/` and tells you where the pipeline stands and what to run next. Tracks coverage across capability areas, handles fan-out guidance (which areas still need specs, constraints, etc.), and adapts recommendations to project scale.
+Reads the current state of `.gener8v/` and tells you where the pipeline stands and what to run next. Tracks coverage across capability areas through the full lifecycle — from specification through delivery and reviews. In the delivery stage, shifts to ticket-level tracking with per-ticket delivery and review status. Recommends running Code Review, Quality Review, and Security Review in parallel after each delivery.
 
 **Input:** Current state of `.gener8v/` directory
-**Output:** Coverage matrix, pipeline stage, and ordered next steps
+**Output:** Coverage matrix (including Delivered/CR/QR/SEC columns), pipeline stage, and ordered next steps
 
 ## Design Principles
 
