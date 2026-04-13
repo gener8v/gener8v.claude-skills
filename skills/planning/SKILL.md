@@ -207,6 +207,9 @@ This skill produces output that feeds into:
 - **Ticket Breakdown Skill**: Decomposes specified capabilities into implementable work items
 - **Orchestrate Skill**: Reads the PRD to determine pipeline status and next steps
 
+**Alternative entry point:**
+- **Brownfield Skill**: For existing codebases, the Brownfield skill produces the PRD (and specifications) bottom-up from code instead of top-down from user intent. Use Brownfield instead of Planning when the project already has working code.
+
 ## Revisions
 
 - Re-running this skill overwrites `.gener8v/prd.md` — all downstream artifacts (specifications, constraints, dependencies, technical designs, tickets) become potentially stale
@@ -220,3 +223,4 @@ This skill produces output that feeds into:
 - Do not include acceptance criteria; these are defined during specification
 - Keep the document readable by non-technical stakeholders
 - The PRD should be understandable without access to the original prompt
+- **For existing codebases**: If the project already has working code, use the Brownfield skill instead of Planning. Brownfield works bottom-up (code → specifications → PRD) while Planning works top-down (intent → PRD → specifications). Planning is for greenfield projects; Brownfield is for retroactively onboarding existing code into the pipeline

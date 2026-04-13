@@ -4,14 +4,14 @@
     "name": "gener8v"
   },
   "metadata": {
-    "description": "A structured pipeline for turning ideas into implementable work — from PRD through specification, constraints, dependencies, and ticket breakdown.",
+    "description": "A structured pipeline for turning ideas into delivered, reviewed code — from PRD through specification, constraints, dependencies, technical design, ticket breakdown, delivery, and code review. Works for greenfield and brownfield projects.",
     "version": "0.1.0"
   },
   "plugins": [
     {
       "name": "gener8v-claude-skills",
       "source": "./",
-      "description": "A structured pipeline for turning ideas into implementable work — from PRD through specification, constraints, dependencies, and ticket breakdown.",
+      "description": "A structured pipeline for turning ideas into delivered, reviewed code — from PRD through specification, constraints, dependencies, technical design, ticket breakdown, delivery, and code review. Works for greenfield and brownfield projects.",
       "version": "0.1.0",
       "strict": true
     }

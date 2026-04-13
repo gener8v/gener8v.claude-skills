@@ -89,6 +89,15 @@ Produce a markdown document with the following structure:
 
 *[Omit this section if no technical design exists. Note "Technical design not available — architecture adherence not verified."]*
 
+### @spec Annotation Coverage
+
+| Requirement | Expected Annotation | Code Location | Present |
+|-------------|-------------------|---------------|---------|
+| [XX]-REQ-XXX | `@spec [XX]-REQ-XXX` | [file:function] | Yes / No / Misplaced |
+
+**Coverage:** [X of Y requirements annotated]
+**Missing:** [List any requirements without `@spec` annotations — each is an Issue-level finding]
+
 ## Delivery Decisions Review
 
 | Decision | Assessment | Notes |
@@ -169,17 +178,19 @@ The skill updates code files when the user approves changes.
 
 7. **Check Architecture Adherence**: For each relevant architecture decision (AD-XXX) from the technical design, verify the code follows it. Note alignment or divergence.
 
-8. **Review Delivery Decisions**: Examine each DEL-XXX decision in the delivery record. Assess whether the decision was reasonable given the context, and whether it introduced risks or downstream impact.
+8. **Check `@spec` Annotations**: For each requirement the ticket covers, verify that an `@spec` annotation exists in the delivered code at the appropriate location. Check that annotations are correctly placed (on the line above the implementing function/class/method), list the right requirement IDs, and that no requirements are missing annotations. Missing annotations are Issue-level findings — traceability must survive in the code, not just in pipeline artifacts.
 
-9. **Review Deviations**: If the delivery record lists deviations from the approved plan, assess their impact on traceability and downstream tickets.
+9. **Review Delivery Decisions**: Examine each DEL-XXX decision in the delivery record. Assess whether the decision was reasonable given the context, and whether it introduced risks or downstream impact.
 
-10. **Draft Findings**: For each issue discovered, create a finding with severity, location, traceability reference, description, impact, and recommendation.
+10. **Review Deviations**: If the delivery record lists deviations from the approved plan, assess their impact on traceability and downstream tickets.
 
-11. **Present to User**: Share findings starting with Critical, then Issues, then Observations. For each finding, explain the issue, its pipeline trace, and the recommended fix. Work through interactive resolution.
+11. **Draft Findings**: For each issue discovered, create a finding with severity, location, traceability reference, description, impact, and recommendation.
 
-12. **Apply Approved Changes**: Update code files for findings the user approves.
+12. **Present to User**: Share findings starting with Critical, then Issues, then Observations. For each finding, explain the issue, its pipeline trace, and the recommended fix. Work through interactive resolution.
 
-13. **Write Report**: Save the code review report to `.gener8v/reviews/`.
+13. **Apply Approved Changes**: Update code files for findings the user approves.
+
+14. **Write Report**: Save the code review report to `.gener8v/reviews/`.
 
 ## Example
 

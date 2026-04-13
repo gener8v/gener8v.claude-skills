@@ -95,6 +95,17 @@ This prefix ensures requirement IDs are unique across the project.
 ## Assumptions
 
 - Assumption: [Statement assumed to be true]
+
+## @spec Coverage (populated after delivery)
+
+[This section is added after code is delivered. It maps each requirement
+to its `@spec` annotation location(s) in the codebase. Do not include
+this section when first creating the specification — it is populated by
+the Delivery skill and verified by Code Review.]
+
+| Requirement | Code Location(s) |
+|-------------|-----------------|
+| [XX]-REQ-XXX | [file:function] |
 ```
 
 ---
@@ -259,3 +270,4 @@ Defines how support agents search documentation using natural language and recei
 - Open Questions from source PRD relevant to this capability should be carried forward
 - This skill does not define acceptance criteria—that occurs during Ticket Breakdown
 - Keep specifications under ~2000 words; split complex capabilities if needed
+- The `@spec Coverage` section at the end of the output format is not populated during specification creation — it is filled in after code is delivered, linking each requirement to its annotated code location(s). The Brownfield skill populates this section immediately since it works from existing code

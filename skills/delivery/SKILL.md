@@ -105,6 +105,14 @@ If nothing changed, state "None — implementation followed the approved plan."]
 
 - [Deviation description]: [Why it was necessary and what impact it has on downstream tickets]
 
+## @spec Annotations
+
+| Requirement | Code Location | Annotation |
+|-------------|---------------|------------|
+| [XX]-REQ-XXX | [file:function or class] | `@spec [XX]-REQ-XXX` |
+
+[Any requirements that could not be annotated, with explanation.]
+
 ## Notes
 
 [Implementation observations, warnings for downstream tickets,
@@ -133,6 +141,21 @@ Implementation always surfaces decisions not anticipated by the ticket or techni
 ### Deviations Are Expected, Not Failures
 Real implementation often diverges from the plan. A dependency behaves differently than expected, an approach proves impractical, a better solution emerges during coding. The delivery record documents what changed and why. Deviations are information for downstream tickets and reviews, not defects.
 
+### Annotate for Traceability
+Every function, class, method, or handler that implements a requirement gets an `@spec` annotation comment linking it to the requirement IDs it satisfies. Use the language's native comment syntax:
+
+```python
+# @spec SR-REQ-001, SR-REQ-002
+def process_query(text):
+```
+
+```typescript
+// @spec SR-REQ-001, SR-REQ-002
+function processQuery(text: string) {
+```
+
+Place annotations on the line immediately above the declaration. One annotation per code location, listing all requirement IDs implemented there. A requirement may appear in multiple annotations if it is implemented across multiple locations. These annotations make traceability greppable (`grep -r "@spec" src/`) and survive beyond the review phase — any developer can trace code back to requirements without consulting pipeline artifacts.
+
 ### Stay in Your Lane
 Only implement what this ticket specifies. Do not refactor adjacent code, add unrequested features, or "fix" things you notice in predecessor output. If something needs attention, note it in the delivery record — it belongs in a separate ticket. Scope discipline prevents one ticket from silently changing the foundation that other tickets depend on.
 
@@ -160,13 +183,15 @@ Only implement what this ticket specifies. Do not refactor adjacent code, add un
 
 7. **Implement**: Write the actual code files as described in the approved plan. Follow the technical design's architecture decisions. Respect constraints referenced in the ticket. Produce the files declared in the ticket's Output section.
 
-8. **Verify Acceptance Criteria**: Walk through each acceptance criterion from the ticket and verify the delivered code satisfies it. For each criterion, note the specific evidence (file, function, behavior) that demonstrates satisfaction.
+8. **Add `@spec` Annotations**: For each function, class, method, or handler that implements a requirement from the ticket's Requirements Covered list, add an `@spec` annotation comment on the line immediately above the declaration. List all requirement IDs that the code location satisfies. If a requirement is implemented across multiple locations, annotate each one.
 
-9. **Record Decisions**: Document any implementation decisions made during coding as DEL-XXX entries with context, decision, rationale, and ticket impact.
+9. **Verify Acceptance Criteria**: Walk through each acceptance criterion from the ticket and verify the delivered code satisfies it. For each criterion, note the specific evidence (file, function, behavior) that demonstrates satisfaction.
 
-10. **Record Deviations**: Compare the delivered implementation against the approved plan. Document anything that changed and why. If the Output files differ from what the ticket declared, note the impact on downstream tickets.
+10. **Record Decisions**: Document any implementation decisions made during coding as DEL-XXX entries with context, decision, rationale, and ticket impact.
 
-11. **Write Delivery Record**: Save the delivery record to `.gener8v/delivery/[capability-area-slug]-[ticket-id]-delivery.md`.
+11. **Record Deviations**: Compare the delivered implementation against the approved plan. Document anything that changed and why. If the Output files differ from what the ticket declared, note the impact on downstream tickets.
+
+12. **Write Delivery Record**: Save the delivery record to `.gener8v/delivery/[capability-area-slug]-[ticket-id]-delivery.md`.
 
 ## Example
 
@@ -255,6 +280,14 @@ The ticket specifies:
 ## Deviations from Plan
 
 None — implementation followed the approved plan.
+
+## @spec Annotations
+
+| Requirement | Code Location | Annotation |
+|-------------|---------------|------------|
+| SR-REQ-001 | `src/search/query_input.py:process_query()` | `@spec SR-REQ-001` |
+
+All requirements annotated.
 
 ## Notes
 

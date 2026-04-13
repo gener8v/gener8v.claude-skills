@@ -17,6 +17,7 @@ Use this skill when:
 
 **Source:** One or more pipeline artifacts from `.gener8v/`
 **Read from:**
+- Pipeline State: `.gener8v/pipeline-state.yaml` (for quick status overview before deep audit)
 - PRD: `.gener8v/prd.md`
 - System Context: `.gener8v/context.md`
 - Specifications: `.gener8v/specifications/*.md`
@@ -28,6 +29,7 @@ Use this skill when:
 - Code Reviews: `.gener8v/reviews/*-code-review.md`
 - Quality Reviews: `.gener8v/reviews/*-quality-review.md`
 - Security Reviews: `.gener8v/reviews/*-security-review.md`
+- Delivered code files (for `@spec` annotation verification)
 
 **Expects:** At least one artifact to exist. The skill adapts its checks based on what's available — auditing a PRD alone is valid, but auditing tickets without a specification is less useful and the skill will flag this.
 
@@ -203,10 +205,13 @@ These apply when auditing any individual artifact.
 - [ ] DEL-XXX decisions have context, decision, and rationale
 - [ ] Deviations from plan are documented (or explicitly "None")
 - [ ] Requirements Covered matches the source ticket's Requirements Covered
+- [ ] `@spec` Annotations section is present with a mapping of requirements to code locations
+- [ ] Every requirement in Requirements Covered has at least one `@spec` annotation in the delivered code
 
 #### Code Review Checks
 - [ ] Every acceptance criterion from the ticket appears in the Acceptance Criteria Coverage table
 - [ ] Every requirement from the ticket appears in the Requirement Coverage table
+- [ ] `@spec` Annotation Coverage table is present and shows all requirements annotated (or missing annotations flagged as findings)
 - [ ] All CR-XXX findings have traceability to a pipeline artifact (REQ-XXX, AD-XXX, constraint ID, or acceptance criterion)
 - [ ] Verdict is present
 - [ ] Critical findings are resolved or have documented rationale for deferral
@@ -248,6 +253,8 @@ These apply when auditing across the pipeline.
 - [ ] Delivery record file paths (Files Produced) match the ticket's Output section (or deviations are documented)
 - [ ] Predecessor tickets referenced in Depends On have delivery records before dependent tickets are delivered
 - [ ] DEL-XXX decision IDs are unique across delivery records
+- [ ] `@spec` annotations in delivered code reference requirement IDs that exist in the corresponding specification
+- [ ] Every requirement in a delivered specification has at least one `@spec` annotation in the codebase (`grep -r "@spec" src/`)
 
 #### Review Traceability
 - [ ] Every delivery record has corresponding code review, quality review, and security review reports (or explicit deferral documented)
