@@ -85,6 +85,11 @@ those tickets that this work builds on.]
 **Constraints:**
 - [Relevant constraint IDs and brief description, or "None identified"]
 
+**Known Hazards:** [Front-loaded traps the implementer must know *before* starting — or "None identified". This is where decision supersessions, cross-document conflicts, and schema/pattern gotchas live, so they are seen first, not discovered mid-build. Each hazard names what to do about it.]
+- [e.g., "DEC-133 supersedes AC-22-004 — build the New Leads filter on `created_at`, NOT `stage_updated_at`; the spec text is stale"]
+- [e.g., "Spec conflict: this AC and BR-22.23 disagree on edit-lock behavior — implement per BR-22.23, flag the conflict as an EXCEPTION in the delivery record, do NOT silently reconcile"]
+- [e.g., "`status` has no DB CHECK — enforce the enum at the application layer at every write path"]
+
 **Depends On:** [Other ticket IDs this is blocked by, or "None"]
 **Blocks:** [Other ticket IDs this unblocks, or "None"]
 
@@ -157,6 +162,9 @@ Ticket dependencies should reflect actual implementation order, informed by the 
 ### Constraints Shape Acceptance Criteria
 Constraints from the Constraints analysis should manifest as acceptance criteria or notes on relevant tickets. A compliance constraint becomes a testable condition. A technical constraint becomes a boundary the implementation must respect.
 
+### Front-Load the Hazards
+The most expensive failure mode in agent-driven delivery is the implementer building confidently on a wrong assumption — a stale spec, a superseded decision, a schema gotcha, or a conflict between two source documents. The single most effective mitigation is a **Known Hazards** section at the top of the ticket that names these traps *before* the work, with what to do about each. Three kinds belong here: (1) **supersessions** — where a decision overrides spec text the implementer would otherwise follow; (2) **cross-document conflicts** — where two artifacts disagree, with an instruction to implement one and surface the conflict rather than silently reconcile it; (3) **schema/pattern gotchas** — invariants enforced only at the application layer, unusual delete semantics, permission-matrix variations that look uniform but aren't. A hazard without a "so do X" is a worry, not a hazard — always state the resolution.
+
 ### Self-Contained Tickets
 Each ticket should be understandable without reading every other ticket. Include enough context in the summary and acceptance criteria that a developer can pick it up and know what to build. Reference other tickets for dependency, not for comprehension.
 
@@ -180,17 +188,19 @@ Every ticket must include an **Output** section that describes the files or dire
 
 6. **Apply Constraints**: Review each ticket against the Constraints Analysis. Add relevant constraints as acceptance criteria or notes.
 
-7. **Map Ticket Dependencies**: Using the Dependency Map and the requirements themselves, determine which tickets block which. Keep the graph as flat as possible—deep chains reduce parallelization.
+7. **Surface Known Hazards**: For each ticket, scan the source artifacts for traps the implementer must know before starting — decision supersessions (a KDL/decision entry that overrides spec text), cross-document conflicts (two artifacts that disagree), and schema/pattern gotchas (app-layer-only invariants, unusual delete semantics, permission variations). Record each in the ticket's **Known Hazards** field with its resolution. If none exist, state "None identified" — the empty field is a signal that the scan was done, not skipped.
 
-8. **Size Tickets**: Assign relative size. If any ticket is Large, evaluate whether it can be split without creating artificial boundaries.
+8. **Map Ticket Dependencies**: Using the Dependency Map and the requirements themselves, determine which tickets block which. Keep the graph as flat as possible—deep chains reduce parallelization.
 
-9. **Verify Coverage**: Check that every requirement from the Specification appears in at least one ticket. Check that no requirement is orphaned. Check that every ticket has Prior Art and Output sections.
+9. **Size Tickets**: Assign relative size. If any ticket is Large, evaluate whether it can be split without creating artificial boundaries.
 
-10. **Determine Ordering**: Propose an implementation sequence based on dependencies, risk (build risky things first), and value (deliver demonstrable capability early).
+10. **Verify Coverage**: Check that every requirement from the Specification appears in at least one ticket. Check that no requirement is orphaned. Check that every ticket has Prior Art, Output, and Known Hazards sections.
 
-11. **Build Summary Table**: Create the backlog summary with dependency status so "ready to start" tickets are immediately visible.
+11. **Determine Ordering**: Propose an implementation sequence based on dependencies, risk (build risky things first), and value (deliver demonstrable capability early).
 
-12. **Flag Gaps**: If open questions from upstream skills affect ticket definition, note them. If a ticket cannot be fully specified, say so and identify what is needed.
+12. **Build Summary Table**: Create the backlog summary with dependency status so "ready to start" tickets are immediately visible.
+
+13. **Flag Gaps**: If open questions from upstream skills affect ticket definition, note them. If a ticket cannot be fully specified, say so and identify what is needed.
 
 ## Example
 
@@ -275,6 +285,9 @@ Four tickets decomposed from the Search & Retrieval specification. The work form
 
 **Constraints:**
 - TC-001: Semantic search capability required
+
+**Known Hazards:**
+- The index schema is a shared resource (SR-001) co-owned with Documentation Ingestion — confirm the agreed schema contract exists before defining the index; do not invent a schema unilaterally, and if the contract is not yet defined, surface it rather than guessing.
 
 **Depends On:** None (index schema can be defined before ingestion is complete; integration testing requires DEP-001)
 **Blocks:** TICKET-003
