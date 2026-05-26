@@ -12,6 +12,7 @@ Use this skill when:
 - The user wants a second pass on a PRD, specification, or ticket breakdown before committing to it
 - Open questions have accumulated across documents and need triage
 - The team suspects something was missed but isn't sure where
+- A ticket (or an externally-authored plan) is about to be delivered and its assumptions about the codebase need verification against ground truth *before* any code is written
 
 ## Input
 
@@ -59,6 +60,14 @@ Trace consistency and coverage across multiple pipeline stages.
 
 **Trigger:** User asks to audit the pipeline, or multiple stages have been completed
 **Scope:** All available artifacts in `.gener8v/`
+
+### Reconciliation Audit (artifact vs. reality)
+
+Verify that an artifact's claims about the codebase are actually true — not whether the artifacts agree with *each other* (that is Cross-Stage), but whether they agree with the *repository*. This catches the failure the other modes can't: a perfectly self-consistent plan built on a false premise ("builds on existing schema," "table X exists," "script Y runs the checks").
+
+**Trigger:** A ticket or externally-authored plan is about to be delivered; or the user asks whether a plan is actually executable against the current code
+**Scope:** One or more tickets/plans + the live codebase (schema, migrations, scripts, source files, referenced documents)
+**Output verdict:** **Go** (assumptions hold) or **Blocked** (named assumptions are false, with what must exist first)
 
 ## Output Format
 
@@ -189,6 +198,8 @@ These apply when auditing any individual artifact.
 - [ ] Every requirement from the specification appears in at least one ticket
 - [ ] Every ticket has a Prior Art section pointing to specific files
 - [ ] Every ticket has an Output section describing what it produces
+- [ ] Every ticket has a Known Hazards section (populated, or explicitly "None identified" — an absent section means the hazard scan was skipped)
+- [ ] Each listed hazard names a resolution ("so do X"), not just a worry
 - [ ] Acceptance criteria are observable and verifiable
 - [ ] No ticket is sized Large without a note on whether it should be split
 - [ ] Dependency chain is acyclic
@@ -276,6 +287,27 @@ These apply when auditing across the pipeline.
 - [ ] Delivery records reference tickets that still exist in the current ticket breakdown
 - [ ] Code reviews reference acceptance criteria that still exist in the current tickets
 
+### Ground-Truth Reconciliation Checks
+
+These apply in a Reconciliation Audit — they check artifacts against the **actual codebase**, not against other artifacts. Each failure is at minimum a Gap, and Critical if it blocks delivery.
+
+#### Schema & Data Model
+- [ ] Every table, column, enum, and constraint a ticket assumes is present in the schema/migrations (read `shared/schema.ts`, `migrations/`, or the project's equivalent — do not trust the spec's claim)
+- [ ] Where a spec asserts "builds on existing schema," the schema objects actually exist; if they are net-new (never in any migration), that is flagged as an unbuilt prerequisite, not drift
+- [ ] Live database state matches the committed schema where verifiable (note when only the committed source was checked, not a live DB)
+
+#### Files, Scripts & Commands
+- [ ] Every script or command a ticket/plan invokes (gate scripts, build steps, seeds) exists and is runnable
+- [ ] Every file a ticket declares as Prior Art or predecessor Output actually exists at the stated path
+
+#### Referenced Documents
+- [ ] Every document a ticket cites (spec, decision log, data dictionary) is present in the working context
+- [ ] Each is present at the *pinned version* — a stale version (repo has v1.2, ticket pins v1.4) is a finding
+- [ ] Version pins are internally consistent (a document is not pinned to two different versions across artifacts)
+
+#### Decision Closure
+- [ ] Open questions / "Decision Points" the ticket leaves for the user are checked against the code first — any the code already settles are recorded as resolved (with evidence) rather than escalated
+
 ---
 
 ## Severity Levels
@@ -287,11 +319,11 @@ These apply when auditing across the pipeline.
 
 ## Process
 
-1. **Determine Scope**: Identify which artifacts exist in `.gener8v/` and whether this is a single-document or cross-stage audit.
+1. **Determine Scope**: Identify which artifacts exist in `.gener8v/` and whether this is a single-document, cross-stage, or reconciliation audit. A reconciliation audit also needs access to the live codebase, not just `.gener8v/`.
 
-2. **Read Artifacts**: Load all in-scope documents. Note which expected artifacts are missing.
+2. **Read Artifacts**: Load all in-scope documents. Note which expected artifacts are missing. For a reconciliation audit, also read the codebase ground truth the artifacts reference — schema/migrations, scripts, and the cited documents.
 
-3. **Run Checks**: Apply the relevant check lists systematically. For cross-stage audits, run single-document checks first, then cross-stage checks.
+3. **Run Checks**: Apply the relevant check lists systematically. For cross-stage audits, run single-document checks first, then cross-stage checks. For reconciliation audits, run the Ground-Truth Reconciliation checks against the codebase and produce a Go / Blocked verdict.
 
 4. **Draft Findings**: For each failed check, create a finding with severity, location, description, impact, and recommendation.
 

@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Take a single ticket from a ticket breakdown and implement it. This skill operates in two phases: first producing an implementation plan for user approval, then executing the plan by writing actual code. It is the only skill in the pipeline that writes to the real codebase — all other skills produce markdown artifacts in `.gener8v/`. The delivery record captures what was planned, what was built, what decisions were made, and where the implementation diverged from the plan.
+Take a single ticket from a ticket breakdown and implement it. This skill operates in three phases: first **reconciling** the ticket's stated assumptions against the actual codebase, then producing an **implementation plan** for user approval, then **executing** the plan by writing actual code. It is the only skill in the pipeline that writes to the real codebase — all other skills produce markdown artifacts in `.gener8v/`. The delivery record captures what was reconciled, what was planned, what was built, what decisions were made, and where the implementation diverged from the plan.
+
+Reconciliation comes first because a ticket — however well-specified — encodes *assumptions* about the codebase it will build on: that a table or column exists, that a script or command is available, that a referenced document is present at the pinned version, that a predecessor's output is where it claims to be. When those assumptions are wrong, the most expensive outcome is discovering it mid-build (or worse, building confidently on top of the wrong foundation). Verifying them against ground truth *before* planning turns a runtime failure into a cheap pre-flight finding.
 
 ## When to Use
 
@@ -58,6 +60,22 @@ Produce a markdown document with the following structure:
 **Requirements Covered:**
 - [XX]-REQ-XXX: [Brief description]
 - [XX]-REQ-XXX: [Brief description]
+
+## Pre-Flight Reconciliation
+
+**Verdict:** [Go / Blocked]
+
+| Assumption (from ticket) | Expected | Found in repo | Status |
+|--------------------------|----------|---------------|--------|
+| [e.g., table `segment_archive_snapshots` exists] | present | not in schema.ts or migrations | ❌ Blocking |
+| [e.g., `scripts/pre-build-gate.sh` exists] | present | absent | ❌ Blocking |
+| [e.g., Doc #16_07 present at v1.4] | v1.4 | v1.2 in repo | ❌ Blocking |
+| [e.g., `carrier_commission_rates.lob_id` nullable] | nullable | NOT NULL (`schema.ts:NNNN`) | ⚠️ Resolves a Decision Point → Path A |
+| [e.g., predecessor TICKET-002 output exists] | `src/search/index-client.ts` | present | ✅ |
+
+**Resolved from ground truth (not escalated):** [Open questions / Decision Points the ticket left for the user that the code already answers, with evidence — e.g., "PDF approach: repo already depends on `pdfkit`, so the jsPDF-vs-Puppeteer choice is moot."]
+
+**Blocking findings:** [If Verdict is Blocked, what must exist before this ticket can be delivered, and which skill/action produces it. If Go, state "None."]
 
 ## Implementation Plan
 
@@ -123,6 +141,9 @@ performance considerations, or anything the next developer should know.]
 
 ## Principles
 
+### Reconcile Against Ground Truth Before Planning
+A ticket's assumptions are claims to verify, not facts to trust. Before drafting the implementation plan, check every assumption the ticket depends on against the actual repository: do the schema objects it references (tables, columns, enums, constraints) exist in the schema/migrations? Do the files, scripts, and commands it invokes exist? Is every document in Prior Art / Required Reading present at the pinned version? Did predecessor tickets actually produce the outputs this ticket builds on? Resolve from the code what the code can answer — and note where the answer closes an open question the ticket left for the user (e.g., a "Decision Point" that the existing schema already settles). If a *blocking* assumption is false (a required table is missing, a referenced script does not exist, a pinned doc is absent), stop and report — set delivery status to **Blocked** with the reconciliation findings, and do not proceed to planning. The "build-on-existing-schema" premise is the most common silent failure; verify it explicitly.
+
 ### Plan Before You Build
 Never start writing code without presenting the implementation plan to the user first. The plan describes which files will be created or modified, what each will contain, and how acceptance criteria will be met. User approval is the gate between planning and execution. This prevents wasted effort and ensures alignment before code is written.
 
@@ -169,29 +190,31 @@ Only implement what this ticket specifies. Do not refactor adjacent code, add un
 
 4. **Read Technical Design**: If a technical design exists for this capability area, read it for architecture decisions (AD-XXX) that affect this ticket's implementation.
 
-5. **Draft Implementation Plan**: Produce a plan that covers:
+5. **Reconcile Ticket Assumptions Against Ground Truth**: Before planning, verify every assumption the ticket depends on against the actual repository. Read the schema/migrations to confirm referenced tables, columns, enums, and constraints exist; confirm that scripts and commands the ticket invokes are present; confirm every Prior Art / Required Reading document exists at the pinned version; confirm predecessor tickets produced the outputs declared in their Output sections. Build the Pre-Flight Reconciliation table. Where the code answers a question the ticket left open (e.g., a Decision Point the existing schema already settles), record it as resolved rather than escalating it. **Gate:** if any *blocking* assumption is false, set status to **Blocked**, write the reconciliation findings to the delivery record, report to the user, and stop — do not proceed to planning. Only a **Go** verdict continues.
+
+6. **Draft Implementation Plan**: Produce a plan that covers:
    - Every file to be created or modified (aligned with the ticket's Output section)
    - What each file will contain (modules, functions, classes, configuration)
    - How each acceptance criterion will be satisfied
    - Any decisions or trade-offs identified during planning
    - Any constraints from the ticket that shape the implementation
 
-6. **Present Plan to User**: Show the implementation plan and wait for explicit approval. The user may:
+7. **Present Plan to User**: Show the implementation plan and wait for explicit approval. The user may:
    - **Approve**: Proceed to implementation
    - **Modify**: Adjust the plan based on user feedback, then re-present
    - **Reject**: Do not proceed; discuss alternative approaches
 
-7. **Implement**: Write the actual code files as described in the approved plan. Follow the technical design's architecture decisions. Respect constraints referenced in the ticket. Produce the files declared in the ticket's Output section.
+8. **Implement**: Write the actual code files as described in the approved plan. Follow the technical design's architecture decisions. Respect constraints referenced in the ticket. Produce the files declared in the ticket's Output section.
 
-8. **Add `@spec` Annotations**: For each function, class, method, or handler that implements a requirement from the ticket's Requirements Covered list, add an `@spec` annotation comment on the line immediately above the declaration. List all requirement IDs that the code location satisfies. If a requirement is implemented across multiple locations, annotate each one.
+9. **Add `@spec` Annotations**: For each function, class, method, or handler that implements a requirement from the ticket's Requirements Covered list, add an `@spec` annotation comment on the line immediately above the declaration. List all requirement IDs that the code location satisfies. If a requirement is implemented across multiple locations, annotate each one.
 
-9. **Verify Acceptance Criteria**: Walk through each acceptance criterion from the ticket and verify the delivered code satisfies it. For each criterion, note the specific evidence (file, function, behavior) that demonstrates satisfaction.
+10. **Verify Acceptance Criteria**: Walk through each acceptance criterion from the ticket and verify the delivered code satisfies it. For each criterion, note the specific evidence (file, function, behavior) that demonstrates satisfaction.
 
-10. **Record Decisions**: Document any implementation decisions made during coding as DEL-XXX entries with context, decision, rationale, and ticket impact.
+11. **Record Decisions**: Document any implementation decisions made during coding as DEL-XXX entries with context, decision, rationale, and ticket impact.
 
-11. **Record Deviations**: Compare the delivered implementation against the approved plan. Document anything that changed and why. If the Output files differ from what the ticket declared, note the impact on downstream tickets.
+12. **Record Deviations**: Compare the delivered implementation against the approved plan. Document anything that changed and why. If the Output files differ from what the ticket declared, note the impact on downstream tickets.
 
-12. **Write Delivery Record**: Save the delivery record to `.gener8v/delivery/[capability-area-slug]-[ticket-id]-delivery.md`.
+13. **Write Delivery Record**: Save the delivery record to `.gener8v/delivery/[capability-area-slug]-[ticket-id]-delivery.md`.
 
 ## Example
 
@@ -327,4 +350,4 @@ All requirements annotated.
 - If a ticket is sized Large, consider whether it should have been split during Ticket Breakdown rather than delivering a monolithic implementation
 - The `{ext}` placeholder in ticket Output sections should be resolved during implementation planning based on the system context and technology stack
 - When system context (`.gener8v/context.md`) is available, use it to inform language, framework, and convention choices
-- Delivery status values: **Delivered** (all acceptance criteria met), **Partial** (some criteria met, others blocked), **Blocked** (cannot proceed due to missing prerequisites or unresolved questions)
+- Delivery status values: **Delivered** (all acceptance criteria met), **Partial** (some criteria met, others blocked), **Blocked** (cannot proceed — including a failed Pre-Flight Reconciliation: a missing table/column/script or an absent pinned document means the ticket is blocked before planning, with the reconciliation findings naming what must exist first)

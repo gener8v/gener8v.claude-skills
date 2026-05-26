@@ -132,6 +132,7 @@ Reads the current state of `.gener8v/` and tells you where the pipeline stands a
 
 - **Functional over technical** — describe what, not how (except where constraints and technical design are the focus)
 - **Ambiguity becomes open questions** — never assume, always surface
+- **Verify against ground truth before escalating** — when code, schema, config, or an existing artifact can answer a question, read it and answer it; surface to the user only what genuinely remains undecided. A plan's stated premises ("builds on existing schema," "table X already exists," "script Y runs the checks") are claims to verify, not facts to trust
 - **Parseable by downstream agents** — structured output that LLMs can consume
 - **Readable by non-technical stakeholders** — where possible
 - **Independently usable** — each skill works standalone, even if strongest in sequence
@@ -146,6 +147,8 @@ Not every project needs the full pipeline. Match the depth to the scope:
 - **Light (1-2 capability areas, well-understood domain):** Planning → Specification → Ticket Breakdown → Delivery → Reviews. Skip Constraints, Dependencies, and Technical Design if the work is self-contained and the implementation approach is obvious. Reviews can be selective — Security Review may be sufficient for low-risk code.
 - **Standard (3-5 areas, moderate complexity):** The full pipeline through Delivery and all three Reviews. Run each skill in sequence. Use Orchestrate to track progress. Run all three reviews in parallel after each delivery.
 - **Deep (6+ areas, complex or cross-team):** Run the full pipeline, but consider grouping related capability areas into sub-pipelines. Use Orchestrate heavily to manage fan-out. Run Audit at milestones, not just at the end. Delivery creates significant fan-out (each ticket is a delivery + 3 reviews), so track at the ticket level.
+
+Depth should also track **correctness risk, not just capability-area count.** A small, well-understood feature that nonetheless carries a data-integrity, tenant-isolation, or security-critical invariant earns the heavy treatment *on that piece* — full specification, technical design, and all three reviews — even when the rest of the work is Light. Conversely, do not wrap low-risk CRUD-over-existing-schema in ceremony it doesn't need: per-item approval gates and stop-and-report checkpoints are for the parts where getting it wrong is expensive, not for surfacing-existing-data screens.
 
 ## Project Structure
 
