@@ -114,6 +114,20 @@ Performs an OWASP-informed, code-level security review. Checks for injection vul
 **Input:** Delivered code files (+ constraints for compliance, technical design for auth patterns)
 **Output:** Security review report with OWASP-referenced findings and verdict
 
+### [OWASP Top 10 Review](./skills/owasp-top10-review/)
+
+Framework-coverage complement to Security Review. Walks all ten OWASP Top 10:2025 categories top-down — assessing posture in each, mapping an existing finding register (SEC-XXX) onto the taxonomy, and verifying the categories a bottom-up pass tends to miss (insecure deserialization, security-event logging, fail-open error handling, SSRF). Deep-passes the two new 2025 categories (A03 Software Supply Chain Failures, A10 Mishandling of Exceptional Conditions). Where Security Review finds bugs, this proves coverage and surfaces missed categories.
+
+**Input:** Codebase + IaC/CI + an existing security review register (optional)
+**Output:** OWASP Top 10:2025 coverage assessment with a category matrix and re-ranked priorities
+
+### [OWASP LLM Top 10 Review](./skills/owasp-llm-top10-review/)
+
+Category-by-category assessment of an AI/LLM application against the OWASP Top 10 for LLM Applications 2025. Covers risks the web Top 10 misses: prompt injection (direct and indirect via retrieved content), sensitive-information disclosure through model I/O, data/model poisoning, improper output handling, excessive agency, system-prompt leakage, and unbounded consumption (denial-of-wallet). Grounds findings in how prompts are built, what output is trusted, what the model can act on, and whether spend is bounded.
+
+**Input:** LLM orchestration code (prompts, clients, retrieval, telemetry, cost) + an existing security review register (optional)
+**Output:** OWASP LLM Top 10:2025 assessment with a category matrix, findings, and positive controls
+
 ### [Audit](./skills/audit/)
 
 Reviews pipeline artifacts for gaps, inconsistencies, missing coverage, and unresolved ambiguity. Works interactively with the user to resolve findings. Covers the full pipeline: PRD structure, specification atomicity, constraint categorization, dependency completeness, technical design rationale, ticket coverage, delivery record verification, code review traceability, quality review completeness, and security review OWASP compliance. Cross-stage checks trace requirements from specification through delivery and verify that review verdicts are consistent.
@@ -166,6 +180,8 @@ skills/
   code-review/SKILL.md       # Delivery → pipeline traceability + @spec verification
   quality-review/SKILL.md    # Delivery → engineering quality review
   security-review/SKILL.md   # Delivery → OWASP security review
+  owasp-top10-review/SKILL.md      # Codebase → OWASP Top 10:2025 coverage assessment
+  owasp-llm-top10-review/SKILL.md  # LLM app → OWASP LLM Top 10:2025 assessment
   audit/SKILL.md             # Any artifact(s) → audit report
   orchestrate/SKILL.md       # Pipeline status + pipeline-state.yaml
 .claude-plugin/
