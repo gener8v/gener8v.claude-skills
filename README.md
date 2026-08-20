@@ -1,6 +1,6 @@
 # gener8v Claude Skills
 
-A structured pipeline for turning ideas into delivered, reviewed code. Fourteen skills that take a user prompt from raw intent through requirements, specification, constraint analysis, dependency mapping, technical design, ticket breakdown, implementation, and code review — with audit and orchestration skills that keep the pipeline on track. Works for greenfield and brownfield projects alike. Each designed for LLM-driven execution.
+A structured pipeline for turning ideas into delivered, reviewed code. Seventeen skills that take a user prompt from raw intent through requirements, specification, constraint analysis, dependency mapping, technical design, ticket breakdown, implementation, and code review — with audit and orchestration skills that keep the pipeline on track. Works for greenfield and brownfield projects alike. Each designed for LLM-driven execution.
 
 ## The Pipeline
 
@@ -21,6 +21,9 @@ Greenfield: Planning                              Brownfield: Brownfield
 Ticket Breakdown → Delivery ────────┼─→ Quality Review
                                     └─→ Security Review
                                     (run in parallel after delivery)
+
+                                          Defect Sweep
+                 (any existing subsystem — no delivery, ticket or spec required)
 
                                            Orchestrate
                               (status + pipeline-state.yaml at any point)
@@ -127,6 +130,14 @@ Category-by-category assessment of an AI/LLM application against the OWASP Top 1
 
 **Input:** LLM orchestration code (prompts, clients, retrieval, telemetry, cost) + an existing security review register (optional)
 **Output:** OWASP LLM Top 10:2025 assessment with a category matrix, findings, and positive controls
+### [Defect Sweep](./skills/defect-sweep/)
+
+Searches existing code for defects nobody is looking for. Unlike the review skills, it is not anchored to a delivery — it takes a subsystem and sweeps its **perimeter** for known defect classes: inherited defaults, sibling writers, incomplete gates, fail-open error paths, silent truncation, stale assertions, identity confusion, time-based inference, unasked authorization, and over-serving the client. Every finding names a circumstance in which something breaks and carries proof; a sweep also reports the classes it ran clean and where it stopped.
+
+Building and sweeping are different modes — a builder verifies the thing they made and is incurious about its neighbours — so this is run as a fresh pass rather than folded into Delivery.
+
+**Input:** A subsystem, named by directory, feature or entry point (no `.gener8v/` artifacts required)
+**Output:** `.gener8v/sweeps/[subsystem-slug]-sweep.md` — findings ordered by consequence, classes swept clean, and a verdict
 
 ### [Audit](./skills/audit/)
 
