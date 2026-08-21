@@ -1,6 +1,6 @@
 # gener8v Claude Skills
 
-A structured pipeline for turning ideas into delivered, reviewed code. Seventeen skills that take a user prompt from raw intent through requirements, specification, constraint analysis, dependency mapping, technical design, ticket breakdown, implementation, and code review — with audit and orchestration skills that keep the pipeline on track. Works for greenfield and brownfield projects alike. Each designed for LLM-driven execution.
+A structured pipeline for turning ideas into delivered, reviewed code. Eighteen skills that take a user prompt from raw intent through requirements, specification, constraint analysis, dependency mapping, technical design, ticket breakdown, implementation, and code review — with audit and orchestration skills that keep the pipeline on track. Works for greenfield and brownfield projects alike. Each designed for LLM-driven execution.
 
 ## The Pipeline
 
@@ -21,6 +21,9 @@ Greenfield: Planning                              Brownfield: Brownfield
 Ticket Breakdown → Delivery ────────┼─→ Quality Review
                                     └─→ Security Review
                                     (run in parallel after delivery)
+
+                                          Flow Mapping
+                  (current-state data flows, as diagrams that compile)
 
                                           Defect Sweep
                  (any existing subsystem — no delivery, ticket or spec required)
@@ -130,6 +133,17 @@ Category-by-category assessment of an AI/LLM application against the OWASP Top 1
 
 **Input:** LLM orchestration code (prompts, clients, retrieval, telemetry, cost) + an existing security review register (optional)
 **Output:** OWASP LLM Top 10:2025 assessment with a category matrix, findings, and positive controls
+### [Flow Mapping](./skills/flow-mapping/)
+
+Turns current-state data-flow findings into Mermaid diagrams that compile, read clearly, and state their own maturity. Pairs a deterministic validator (`workflows/validate-flows.sh` — compilation via `mmdc`, plus structural lints for unlabelled edges, missing reliability classes, absent cadence, and oversized graphs) with an LLM review pass for what a lint cannot decide: whether a label is domain language, whether a class assignment is defensible, whether the diagram claims more than the evidence supports.
+
+Asserts what *is*, evidenced — flows nobody described go in an explicit **Unknowns** list rather than into the diagram. Current-state only; not for future-state architecture proposals.
+
+**Input:** `data-flow` / `system-map` / `integration-map` deliverables, flow triples, or interview evidence
+**Output:** `.gener8v/flows/[domain-slug].md` per domain — prose, Mermaid diagrams, reliability classes, and Unknowns. Gate: the validator must exit 0.
+
+**Requires:** `npx` (Node). Fetches `@mermaid-js/mermaid-cli@11` on first run — the only skill with an external runtime dependency.
+
 ### [Defect Sweep](./skills/defect-sweep/)
 
 Searches existing code for defects nobody is looking for. Unlike the review skills, it is not anchored to a delivery — it takes a subsystem and sweeps its **perimeter** for known defect classes: inherited defaults, sibling writers, incomplete gates, fail-open error paths, silent truncation, stale assertions, identity confusion, time-based inference, unasked authorization, and over-serving the client. Every finding names a circumstance in which something breaks and carries proof; a sweep also reports the classes it ran clean and where it stopped.
