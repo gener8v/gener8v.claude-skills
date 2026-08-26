@@ -4,6 +4,7 @@
 
 Reviewing the delivery of `support-search/search-and-retrieval/TICKET-002` — "Configure search index for semantic matching" — for Search & Retrieval in the change `support-search` (the only active change, so `/security-review Search & Retrieval TICKET-002` needs no `in …` clause).
 
+- Ticket: `.gener8v/changes/support-search/tickets/search-and-retrieval/TICKET-002.md`
 - Delivery record: `.gener8v/changes/support-search/delivery/search-and-retrieval-ticket-002-delivery.md`
 - Delivered code (root-relative; a single repository): `src/search/index.py` and `src/search/index_client.py`
 - Constraints: `.gener8v/constraints/search-and-retrieval.md` — CC-001 (access controls if documentation holds PII)

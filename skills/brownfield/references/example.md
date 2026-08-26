@@ -228,6 +228,7 @@ relevance threshold — starts with `/planning`, which amends `prd.md` in place 
 Log` entry) and opens `changes/search-relevance-v2/change.md`. Specification then amends
 `specifications/search-and-retrieval.md`: SR-REQ-003 gains `*(amended 2026-09-02 by
 search-relevance-v2)*` with the corrected text, and a new `- **SR-REQ-011** *(must · change:
-search-relevance-v2)*: …` is appended above the current maximum. Ticket Breakdown writes
-`changes/search-relevance-v2/tickets/search-and-retrieval.md`, and Delivery runs `api/`'s verify
-commands from the Repositories table. Nothing from onboarding is regenerated.
+search-relevance-v2)*: …` is appended above the current maximum. Ticket Breakdown writes one file
+per ticket under `changes/search-relevance-v2/tickets/search-and-retrieval/` (`TICKET-001.md`, … plus
+`backlog.md`), and Delivery runs `api/`'s verify commands from the Repositories table. Nothing from
+onboarding is regenerated.

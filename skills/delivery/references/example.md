@@ -2,9 +2,9 @@
 
 ## Input
 
-Delivering `support-search/search-and-retrieval/TICKET-001` — "Implement query input interface" — from `.gener8v/changes/support-search/tickets/search-and-retrieval.md`. One change (`support-search`) is active, so it is the default and the argument did not need to name it.
+Delivering `support-search/search-and-retrieval/TICKET-001` — "Implement query input interface" — from `.gener8v/changes/support-search/tickets/search-and-retrieval/TICKET-001.md`. One change (`support-search`) is active, so it is the default and the argument did not need to name it. The sibling `backlog.md` places the ticket first in the suggested ordering, with no predecessor.
 
-The ticket specifies:
+The ticket's header lines confirm the target — **Change:** support-search · **Capability Area:** Search & Retrieval (search-and-retrieval) · **Specification:** specifications/search-and-retrieval.md — and the ticket specifies:
 - **Priority:** Must
 - **Value:** A support agent can type a question in their own words and have it accepted for search
 - **Requirements Covered:** SR-REQ-001 (accept free-text natural language questions as search input), SR-REQ-002 (accept queries of at least 500 characters), SR-REQ-003 (reject empty or whitespace-only queries with a clear message)

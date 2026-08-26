@@ -213,7 +213,7 @@ A full worked example — the Search & Retrieval specification of the Support Do
 - **Constraints Skill**: Analyzes for technical, compliance, or operational constraints (boundaries — the NFRs here are targets)
 - **Dependencies Skill**: Maps dependencies between capabilities and external systems
 - **Technical Design Skill**: Translates requirements into architecture decisions and component design; its Infrastructure Requirements and Technical Risks cite the NFR IDs they serve
-- **Ticket Breakdown Skill**: Decomposes the requirements and NFRs the change brief names for this area into implementable work items under `changes/<change-slug>/tickets/`
+- **Ticket Breakdown Skill**: Decomposes the requirements and NFRs the change brief names for this area into implementable work items under `changes/<change-slug>/tickets/<area-slug>/` — one `TICKET-NNN.md` per ticket plus `backlog.md`
 - **Delivery Skill**: Annotates code with these requirement IDs, appends the `## @spec Coverage` rows, and runs the executable NFR checks in its Verification Run
 - **Orchestrate Skill**: Recommends `specification <area> for <change>` while the brief's row for that area still says `(pending specification)`
 - **Code Review Skill**: Verifies requirement coverage and the `## @spec Coverage` table against the code

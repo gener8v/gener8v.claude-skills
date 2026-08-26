@@ -225,7 +225,7 @@ This skill produces output that feeds into:
 - **Constraints Skill**: Analyzes the PRD for technical, compliance, or integration constraints
 - **Dependencies Skill**: Maps dependencies between capability areas and external systems
 - **Technical Design Skill**: Translates specifications and constraints into architecture decisions
-- **Ticket Breakdown Skill**: Reads the brief's Priority Cut and Affected Capability Areas and decomposes the change's requirements into `changes/<change-slug>/tickets/<area-slug>.md`
+- **Ticket Breakdown Skill**: Reads the brief's Priority Cut and Affected Capability Areas and decomposes the change's requirements into `changes/<change-slug>/tickets/<area-slug>/` (one `TICKET-NNN.md` per ticket, plus `backlog.md`)
 - **Orchestrate Skill**: Reads the PRD and lists changes (`active_changes`, per-change status and pending specification / breakdown in `pipeline-state.yaml`) to determine pipeline status and next steps
 
 **Alternative entry point:**

@@ -125,4 +125,4 @@ Specification runs once per affected area (`specification Search & Retrieval for
 | Search & Retrieval | adds area | Adds SR-REQ-001..010, SR-NFR-001..002; Modifies —; Withdraws — |
 ```
 
-and the brief's Change Log gains `2026-08-26 — SR specification amended: adds SR-REQ-001..010, SR-NFR-001..002 (Specification)`. Ticket Breakdown then reads the Priority Cut and writes `changes/support-search/tickets/search-and-retrieval.md`. When the Product Owner approves the PRD and the brief in conversation, both documents' `**Status:**` lines become `Approved` and `**Approved by:**` names them with the date.
+and the brief's Change Log gains `2026-08-26 — SR specification amended: adds SR-REQ-001..010, SR-NFR-001..002 (Specification)`. Ticket Breakdown then reads the Priority Cut and writes `changes/support-search/tickets/search-and-retrieval/` — one `TICKET-NNN.md` per ticket, plus `backlog.md`. When the Product Owner approves the PRD and the brief in conversation, both documents' `**Status:**` lines become `Approved` and `**Approved by:**` names them with the date.

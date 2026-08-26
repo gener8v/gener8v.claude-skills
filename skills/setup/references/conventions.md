@@ -35,7 +35,7 @@ reviewed — all inside its own directory.
 | Dependency map | `dependencies/dependency-map.md` | living | Dependencies | Technical Design, Ticket Breakdown, Audit |
 | Technical design | `technical-design/<area-slug>.md`, `technical-design/system-design.md` | living | Technical Design | Ticket Breakdown, Delivery, Code Review, Security Review, Architecture Review, Audit |
 | Change brief | `changes/<change-slug>/change.md` | change | Planning (opens); Specification (fills requirement deltas); the approving user (status) | Specification, Ticket Breakdown, Delivery, Orchestrate, Audit |
-| Tickets | `changes/<change-slug>/tickets/<area-slug>.md` | change | Ticket Breakdown; reviews may append a **Known Hazard** when they defer a finding to a named ticket | Delivery, Orchestrate, Audit |
+| Tickets | `changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md` — **one ticket, one file** — plus `tickets/<area-slug>/backlog.md` (overview, dependency chain, suggested ordering) | change | Ticket Breakdown; reviews may append a **Known Hazard** to a ticket's file when they defer a finding to it | Delivery, Orchestrate, Audit |
 | Delivery record | `changes/<change-slug>/delivery/<area-slug>-ticket-NNN-delivery.md` | change | Delivery (from reconciliation onward); reviews append `## Post-Review Amendments` | reviews, Orchestrate, Audit, later Deliveries |
 | Reviews | `changes/<change-slug>/reviews/<area-slug>-ticket-NNN-{code,quality,security}-review.md` | change | the review skill (or its agent) | Orchestrate, Audit, assessments, later Deliveries |
 | Assessments | `reviews/<system-slug>-owasp-top10-assessment.md`, `…-owasp-llm-top10-assessment.md`, `…-architecture-assessment.md` | system-level | the assessment skill | Orchestrate, Audit |
@@ -43,10 +43,12 @@ reviewed — all inside its own directory.
 | Sweeps | `sweeps/<subsystem-slug>-sweep.md` | standalone | Defect Sweep (or its agent) | Ticket Breakdown, Orchestrate, Audit |
 | Audits | `audits/<scope>-audit-YYYY-MM-DD.md` | dated | Audit | Audit (carries deferrals forward), Orchestrate |
 
-**Legacy layout.** A project whose `tickets/`, `delivery/` and `reviews/*-review.md` sit at the top level
+**Legacy layouts.** A project whose `tickets/`, `delivery/` and `reviews/*-review.md` sit at the top level
 is read as the pseudo-change `initial`. Migrate once with
-`git mv tickets delivery changes/initial/ && mkdir -p changes/initial/reviews && git mv reviews/*-review.md changes/initial/reviews/`;
-no skill writes to the legacy locations.
+`git mv tickets delivery changes/initial/ && mkdir -p changes/initial/reviews && git mv reviews/*-review.md changes/initial/reviews/`.
+A per-area ticket *file* (`tickets/<area-slug>.md` holding `### TICKET-NNN:` sections) is likewise still read,
+and `gener8v-state.py split-tickets` turns it into the one-file-per-ticket directory. No skill writes to either
+legacy shape.
 
 **Active change.** A change is *active* while its status is `ready` or `in_delivery`. When exactly one
 change is active, per-ticket skills (Ticket Breakdown, Delivery, the reviews) default to it; when several
@@ -80,7 +82,7 @@ source. Outside the pipeline, trivial fixes (typo, formatting, config) are fine;
 | `DEP/EXT/RES/RD-NNN` | internal dependency, external dependency, shared resource, risk dependency | dependency map |
 | `AD-NNN`, `TR-NNN`, `TQ-NNN` | architecture decision, technical risk, technical question | technical design |
 | `OQ-NNN` | open question | any document |
-| `TICKET-NNN` | ticket | a ticket breakdown (one file per change and area) |
+| `TICKET-NNN` | ticket — one action item, one file | `changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md`; numbering restarts per area within a change |
 | `DEL-NNN` | delivery decision | delivery record |
 | `CR/QR/SEC-NNN` | code / quality / security finding | review report |
 | `DS-NNN` | sweep finding | sweep |
@@ -95,6 +97,11 @@ requirement IDs; renumbering silently re-binds them to the wrong requirement.
 `- **SR-REQ-011** *(must · change: search-relevance-v2)*: …`; an amended one appends
 `*(amended 2026-08-26 by search-relevance-v2)*`. Baseline (Brownfield) requirements carry no tag. The
 priority word (`must` / `should` / `could`) is optional on requirements and required on tickets.
+
+**One ticket, one file.** A ticket is read, delivered and reviewed on its own, so it lives on its own: `TICKET-NNN.md`
+opens with `# TICKET-NNN: title` and three header lines (`**Change:**`, `**Capability Area:**`, `**Specification:**`)
+that make it self-describing, then the ticket fields. A withdrawn ticket keeps its file with `**Status:** Withdrawn`
+at the top; a re-run breakdown adds files and never rewrites a delivered ticket's file.
 
 **Qualify IDs outside their home document.** Numbering restarts per document, so a reference from another
 document names the source: `prd/TC-001`, `search-and-retrieval/TC-001`,

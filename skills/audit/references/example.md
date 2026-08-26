@@ -10,7 +10,7 @@ User asks: "Audit the pipeline" with the following artifacts available:
 - `.gener8v/specifications/documentation-ingestion.md` (missing)
 - `.gener8v/constraints/search-and-retrieval.md`
 - `.gener8v/dependencies/dependency-map.md`
-- `.gener8v/changes/support-search/tickets/search-and-retrieval.md`
+- `.gener8v/changes/support-search/tickets/search-and-retrieval/` (`backlog.md`, `TICKET-001.md` … `TICKET-004.md`)
 
 ### Output (abbreviated)
 
@@ -28,7 +28,7 @@ Audited 7 artifacts across 5 pipeline stages and one change (`support-search`). 
 - `.gener8v/specifications/results-presentation.md` (Specification)
 - `.gener8v/constraints/search-and-retrieval.md` (Constraints)
 - `.gener8v/dependencies/dependency-map.md` (Dependencies)
-- `.gener8v/changes/support-search/tickets/search-and-retrieval.md` (Ticket Breakdown)
+- `.gener8v/changes/support-search/tickets/search-and-retrieval/` (Ticket Breakdown — `backlog.md` and `TICKET-001.md` … `TICKET-004.md`)
 
 **Findings:** 8
 **Critical:** 1 | **Gaps:** 3 | **Warnings:** 3 | **Suggestions:** 1
@@ -71,7 +71,7 @@ Audited 7 artifacts across 5 pipeline stages and one change (`support-search`). 
 ### FIND-004: Tickets cut from a Draft specification
 
 **Severity:** Warning
-**Location:** `.gener8v/changes/support-search/tickets/search-and-retrieval.md`; `.gener8v/specifications/search-and-retrieval.md` Source Context
+**Location:** `.gener8v/changes/support-search/tickets/search-and-retrieval/TICKET-001.md` … `TICKET-004.md`; `.gener8v/specifications/search-and-retrieval.md` Source Context
 **Description:** The Search & Retrieval specification is `**Status:** Draft` (`**Approved by:** pending`) but four tickets have already been cut from it.
 **Impact:** If the Product Owner changes the priority cut on approval, TICKET-001..004 carry stale scope. Not a block — the record simply says so.
 **Recommendation:** Have the Product Owner approve the specification (the Specification skill flips the Status and Approved-by lines) before TICKET-001 enters delivery.

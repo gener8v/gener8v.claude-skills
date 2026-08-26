@@ -90,10 +90,10 @@ Bridges the gap between functional specification and implementation. Translates 
 
 ### [Ticket Breakdown](./skills/ticket-breakdown/)
 
-Decomposes a fully specified capability — for one change — into implementable work items. Each ticket has a Priority (Must / Should / Could) and a one-line Value, acceptance criteria, requirement and NFR traceability, constraint awareness, Prior Art (verified to exist), an Output contract that includes the tests, Known Hazards, relative sizing, and dependency ordering. Also the path by which sweep findings, deferred review findings and flagged bugs become tickets.
+Decomposes a fully specified capability — for one change — into implementable work items, **one ticket per file**. Each ticket has a Priority (Must / Should / Could) and a one-line Value, acceptance criteria, requirement and NFR traceability, constraint awareness, Prior Art (verified to exist), an Output contract that includes the tests, Known Hazards, relative sizing, and dependency ordering; `backlog.md` alongside carries the overview, dependency chain and suggested ordering. Also the path by which sweep findings, deferred review findings and flagged bugs become tickets.
 
 **Input:** A Specification and the change brief, with Constraints, Dependencies, and Technical Design
-**Output:** `changes/<slug>/tickets/<area>.md` — ready-to-implement tickets with a backlog summary
+**Output:** `changes/<slug>/tickets/<area>/TICKET-NNN.md` (one per ticket) + `backlog.md`
 
 ### [Delivery](./skills/delivery/)
 
@@ -187,7 +187,7 @@ The skills are prose; a few things need to be mechanical. The plugin ships:
   - `PreToolUse` on Write/Edit: denies hand-edits to `pipeline-state.yaml` (it is generated), and adds a one-line reminder when source is edited while no delivery is in progress. It does not block — reviews, Brownfield and trivial fixes legitimately touch source.
   - `PostToolUse` on Write/Edit: regenerates the state file after any write under `.gener8v/` and logs the write to `runs.jsonl`.
 - **`agents/`** — `code-reviewer`, `quality-reviewer`, `security-reviewer` (the findings phase of each review, safe to run in parallel because they only write their report) and `defect-sweeper` (the fresh pass Defect Sweep forks into).
-- **`scripts/gener8v-state.py`** — `state` writes the YAML (schema version 3: living coverage per area, one entry per change with its tickets, active changes, approvals pending); `summary` prints what the hook injects; `lint` reports prefix collisions, requirements and NFRs in no ticket, tickets missing required sections, delivered requirements with no `@spec` annotation, dangling references, and change briefs that disagree with the specifications; `metrics` derives verdict distributions, finding counts, rework rate, verification pass rate, deferred reviews, approvals pending, sweep findings, lead time (from git) and session counts (from `runs.jsonl`). Python 3, no dependencies.
+- **`scripts/gener8v-state.py`** — `state` writes the YAML (schema version 4: living coverage per area, one entry per change with its tickets, active changes, approvals pending); `summary` prints what the hook injects; `lint` reports prefix collisions, requirements and NFRs in no ticket, tickets missing required sections, a ticket directory with no `backlog.md`, a legacy per-area ticket file, delivered requirements with no `@spec` annotation, dangling references, and change briefs that disagree with the specifications; `metrics` derives verdict distributions, finding counts, rework rate, verification pass rate, deferred reviews, approvals pending, sweep findings, lead time (from git) and session counts (from `runs.jsonl`); `split-tickets` turns a legacy per-area ticket file into the one-file-per-ticket directory plus `backlog.md` (`--remove` deletes the original). Python 3, no dependencies.
 - **`scripts/check-install.sh`** — reports drift between the repository and a copied `~/.claude/skills/` install (and, once the plugin is installed, which copies still linger).
 - **`skills/flow-mapping/scripts/validate-flows.sh`** — the Flow Mapping gate.
 - **`skills/*/references/`** — worked examples (one canonical project across every skill), Audit's check lists, Defect Sweep's defect classes, and the conventions Setup installs. Loaded when a skill needs them, not on every invocation.
@@ -201,6 +201,7 @@ python3 "$S" state              # rewrite .gener8v/pipeline-state.yaml
 python3 "$S" lint               # exit 1 on an ERROR (prefix collision, uncovered requirement, brief/spec mismatch)
 python3 "$S" metrics            # derived metrics, YAML on stdout
 python3 "$S" state --json       # the state as JSON, for CI
+python3 "$S" split-tickets      # migrate per-area ticket files to one file per ticket (--remove deletes the originals)
 ```
 
 **Requirements.** Python 3.8+ for the hooks and the state script (without it the hooks stay silent and Orchestrate scans by hand); Node with `npx` for Flow Mapping's validator; git, if you want lead-time metrics.
@@ -215,6 +216,7 @@ Periodic work — sweeps over high-consequence subsystems, dependency-vulnerabil
 - **Verified, not inspected** — a ticket is delivered when an executed check proves each acceptance criterion and the delivery record says which command and exit code; reading the code and finding it plausible is not verification
 - **The record, not the conversation** — anything the user approved is written to `.gener8v/` the moment it is approved; a compaction or a new session resumes from the file
 - **Living artifacts are amended; changes are added** — specifications describe the product and are never regenerated; each initiative is a change with its own tickets, deliveries and reviews
+- **One ticket, one file** — a ticket is a single action item that is read, delivered and reviewed alone, so it lives in its own `TICKET-NNN.md`, self-describing, next to its delivery record and reviews
 - **IDs are append-only** — requirement, constraint, decision and ticket IDs are never renumbered or reused; code carries `@spec` annotations that point at them
 - **Priorities and targets are explicit** — every ticket says Must, Should or Could and what the user gets; every non-functional requirement names a measurable target and how it is verified
 - **Roles are named** — the record says which hat approved what (Product Owner, Architect, Engineer, Security), and the reviewer is never the builder's context
@@ -267,7 +269,7 @@ skills/
   constraints/SKILL.md             # PRD or spec → constraint analysis
   dependencies/SKILL.md            # PRD + specs → dependency map
   technical-design/SKILL.md        # Specs + constraints → architecture decisions
-  ticket-breakdown/SKILL.md        # Spec + change brief → prioritised tickets under changes/<slug>/tickets/
+  ticket-breakdown/SKILL.md        # Spec + change brief → one TICKET-NNN.md per ticket under changes/<slug>/tickets/<area>/
   delivery/SKILL.md                # Ticket → verified code (with @spec) + delivery record
   code-review/SKILL.md             # Delivery → pipeline traceability + @spec verification
   quality-review/SKILL.md          # Delivery → engineering quality review (incl. observability)
@@ -291,7 +293,7 @@ agents/
 hooks/
   hooks.json                       # SessionStart / PreToolUse / PostToolUse
 scripts/
-  gener8v-state.py                 # state | summary | lint | metrics  (Python 3, no dependencies)
+  gener8v-state.py                 # state | summary | lint | metrics | split-tickets  (Python 3, no dependencies)
   session-start.sh                 # SessionStart hook
   pre-write.sh                     # PreToolUse hook
   post-write.sh                    # PostToolUse hook
@@ -332,7 +334,10 @@ When skills run, they produce artifacts in a `.gener8v/` directory at the projec
     support-search/
       change.md                       # The change brief: why, outcome, affected areas + requirement deltas, priority cut
       tickets/
-        search-and-retrieval.md       # One per area touched by this change
+        search-and-retrieval/         # One directory per area touched by this change
+          backlog.md                  # Overview, dependency chain, suggested ordering
+          TICKET-001.md               # One ticket, one file
+          TICKET-002.md
       delivery/
         search-and-retrieval-ticket-001-delivery.md   # Written at reconciliation, plan approval, and delivery
       reviews/
@@ -352,7 +357,7 @@ When skills run, they produce artifacts in a `.gener8v/` directory at the projec
     pipeline-audit-2026-08-26.md      # Dated; never overwritten
 ```
 
-A project created before the change-set layout — with `tickets/`, `delivery/` and `reviews/*-review.md` at the top level — is read as the pseudo-change `initial`. Migrate once: `git mv tickets delivery changes/initial/ && mkdir -p changes/initial/reviews && git mv reviews/*-review.md changes/initial/reviews/`.
+A project created before the change-set layout — with `tickets/`, `delivery/` and `reviews/*-review.md` at the top level — is read as the pseudo-change `initial`. Migrate once: `git mv tickets delivery changes/initial/ && mkdir -p changes/initial/reviews && git mv reviews/*-review.md changes/initial/reviews/`. A per-area ticket file (`tickets/<area>.md` with `### TICKET-NNN` sections) is also still read; `gener8v-state.py split-tickets --remove` turns each into the one-file-per-ticket directory.
 
 ## Getting Started
 

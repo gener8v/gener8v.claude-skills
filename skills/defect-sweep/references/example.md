@@ -55,5 +55,6 @@ Inherited defaults, sibling writers, silent truncation, over-serving the client.
 ## Verdict
 DS-001 and DS-002 before the pause is used on anything live → two tickets. No change is
 active on this project, so Planning opens `fix-generation-stop-controls` first and the tickets
-go in `changes/fix-generation-stop-controls/tickets/generation-stop-controls.md`.
+go in `changes/fix-generation-stop-controls/tickets/generation-stop-controls/` as `TICKET-001.md`
+and `TICKET-002.md`, with `backlog.md` alongside.
 ```

@@ -1,6 +1,6 @@
 ---
 name: ticket-breakdown
-description: "Decompose one capability area's requirements for one change into implementable tickets with Priority, Value, acceptance criteria, Prior Art, Output contracts, Known Hazards, dependency ordering and relative sizing at .gener8v/changes/<change-slug>/tickets/<area-slug>.md. Use when a specification is approved and the team needs work items."
+description: "Decompose one capability area's requirements for one change into implementable tickets with Priority, Value, acceptance criteria, Prior Art, Output contracts, Known Hazards, dependency ordering and relative sizing — one TICKET-NNN.md per ticket plus backlog.md — at .gener8v/changes/<change-slug>/tickets/<area-slug>/. Use when a specification is approved and the team needs work items."
 argument-hint: "<capability area> [for <change-slug>]"
 ---
 # Ticket Breakdown Skill
@@ -38,7 +38,7 @@ Use this skill when:
 
 **Scope:** Only the requirements and NFRs the brief's Affected Capability Areas row *adds* or *modifies* for this area are in scope, unless the brief says otherwise (for example, a row that names an unchanged requirement the change also delivers). The living specification carries every requirement the product has ever had; the brief says which of them this change is about. The Priority Cut decides what not to build — a requirement the brief places under *Could / later* may be left without a ticket, and the breakdown says so.
 
-**Other sources of tickets** (the same output format, appended to the area's breakdown under the active change with IDs above the current maximum — or to a new `fix-<subsystem>` change opened via Planning when no change is active): findings a Defect Sweep verdict says to fix now (`.gener8v/sweeps/*-sweep.md`, cite `DS-XXX`), review findings deferred to a new ticket (cite `<change-slug>/<report-slug>/CR-XXX` etc.), and behaviours Brownfield flagged as bugs in a specification's Open Questions. A bug fix is a Small ticket whose Requirements Covered names the requirement the bug violates — it does not need a new PRD.
+**Other sources of tickets** (the same ticket file format, added as new `TICKET-NNN.md` files to the area's `tickets/<area-slug>/` directory under the active change with IDs above the current maximum — or to a new `fix-<subsystem>` change opened via Planning when no change is active): findings a Defect Sweep verdict says to fix now (`.gener8v/sweeps/*-sweep.md`, cite `DS-XXX`), review findings deferred to a new ticket (cite `<change-slug>/<report-slug>/CR-XXX` etc.), and behaviours Brownfield flagged as bugs in a specification's Open Questions. A bug fix is a Small ticket whose Requirements Covered names the requirement the bug violates — it does not need a new PRD.
 
 **If input is missing or malformed:**
 - If no change brief exists, stop and recommend running the Planning skill to open the change first
@@ -47,53 +47,42 @@ Use this skill when:
 
 ## Output
 
-**Produces:** A ticket breakdown for one capability area within one change
-**Write to:** `.gener8v/changes/[change-slug]/tickets/[capability-area-slug].md`
-**Creates directory:** `.gener8v/changes/[change-slug]/tickets/` if it does not exist
-**Naming convention:** Matches the specification filename (e.g., `search-and-retrieval.md`)
+**Produces:** A ticket breakdown for one capability area within one change — a directory holding one file per ticket plus an area-level backlog
+**Write to:** `.gener8v/changes/[change-slug]/tickets/[capability-area-slug]/` — `TICKET-NNN.md` for each ticket, and `backlog.md` for the overview, source context, dependency chain, suggested ordering and backlog summary
+**Creates directory:** `.gener8v/changes/[change-slug]/tickets/[capability-area-slug]/` if it does not exist
+**Naming convention:** The directory matches the specification filename without its extension (e.g., `search-and-retrieval/`); ticket files are `TICKET-001.md`, `TICKET-002.md`, … — zero-padded to three digits
 
-Run this skill once per change and capability area. Ticket IDs restart at TICKET-001 in every breakdown file; from any other document a ticket is referenced qualified — `<change-slug>/<area-slug>/TICKET-003` (`CONVENTIONS.md` §4). The output feeds Delivery, which implements one ticket at a time.
+Run this skill once per change and capability area. Ticket IDs restart at TICKET-001 in every `tickets/<area-slug>/` directory; from any other document a ticket is referenced qualified — `<change-slug>/<area-slug>/TICKET-003` (`CONVENTIONS.md` §4). The output feeds Delivery, which implements one ticket at a time from that ticket's own file.
+
+**Legacy shape:** a per-area file `tickets/<area-slug>.md` holding `### TICKET-NNN:` sections is still read by the state script (with a warning). Never write it. If the target area exists only in that shape, convert it first with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" split-tickets` (add `--remove` to delete the originals after the split), then add tickets to the resulting directory.
 
 ## Output Format
 
-Produce a markdown document with the following structure:
+Two templates. Every ticket is its own file; the area-level narrative lives in `backlog.md`.
+
+### Ticket file — `TICKET-NNN.md`
 
 ```markdown
-# [Capability Area Name] — Ticket Breakdown
+# TICKET-001: [Concise action-oriented title]
 
-## Overview
-
-[2-3 sentences summarizing the breakdown. State total ticket count,
-how they cluster, and any notable sequencing from the dependency analysis.]
-
-## Source Context
-
-**Change:** [Change title] (`changes/[change-slug]/change.md`)
-**Specification:** [Title of the specification being decomposed]
-**Constraints Analysis:** [Title, or "Not yet performed"]
-**Dependency Map:** [Title, or "Not yet performed"]
-**Technical Design:** [Title, or "Not yet performed"]
-
-## Tickets
-
-### TICKET-001: [Concise action-oriented title]
+**Change:** [change-slug]
+**Capability Area:** [Area name] ([area-slug])
+**Specification:** specifications/[area-slug].md
 
 **Summary:** [1-2 sentences describing what this ticket accomplishes]
-
 **Priority:** [Must / Should / Could — from the change brief's Priority Cut]
 **Value:** [One sentence — what the user or operator gets when this lands]
 
 **Requirements Covered:**
 - [XX]-REQ-001: [Brief description]
 - [XX]-REQ-002: [Brief description]
-- [XX]-NFR-001: [Brief description — NFR IDs are listed exactly like REQ IDs]
+- [XX]-NFR-001: [target — verified by … — NFR IDs are listed exactly like REQ IDs]
 
 **Prior Art:** [What to read/understand before starting. For tickets with
 no dependencies, point to relevant pipeline documents. For tickets that
 depend on other tickets, specify the files and directories produced by
 those tickets that this work builds on.]
-- Read: [root-relative file path — source file, config, module, or pipeline artifact]
-- Understand: [what to look for in that file and why it matters]
+- Read: [root-relative file path — source file, config, module, or pipeline artifact] — [what to look for in that file and why it matters]
 
 **Acceptance Criteria:**
 - [ ] [Observable, verifiable condition that must be true when complete]
@@ -108,8 +97,7 @@ those tickets that this work builds on.]
 - [The test file(s) that prove the acceptance criteria — every ticket with
   testable criteria lists at least one; name which criterion each test covers]
 
-**Constraints:**
-- [Relevant constraint IDs and brief description, or "None identified"]
+**Constraints:** [Qualified constraint IDs and brief description, or "None identified"]
 
 **Known Hazards:** [Front-loaded traps the implementer must know *before* starting — or "None identified". This is where decision supersessions, cross-document conflicts, and schema/pattern gotchas live, so they are seen first, not discovered mid-build. Each hazard names what to do about it.]
 - [e.g., "AD-004 supersedes the spec's wording of SR-REQ-006 — rank on the stored score, NOT on recomputed similarity; the spec text is stale"]
@@ -122,12 +110,24 @@ those tickets that this work builds on.]
 **Size:** [Small / Medium / Large]
 
 **Notes:** [Implementation hints, context, or warnings — optional]
+```
 
----
+The three header lines (`**Change:**`, `**Capability Area:**`, `**Specification:**`) make the file self-describing when read alone — which is the point. A withdrawn ticket keeps its file and gains `**Status:** Withdrawn` as the first line after the title.
 
-### TICKET-002: [Title]
+### Area backlog — `backlog.md`
 
-...
+````markdown
+# [Capability Area Name] — Backlog ([change-slug])
+
+## Overview
+
+[2-3 sentences summarizing the breakdown. State total ticket count,
+how they cluster, and any notable sequencing from the dependency analysis.]
+
+## Source Context
+
+**Specification:** [Title] · **Constraints Analysis:** [Title, or "Not yet performed"] · **Dependency Map:** [Title, or "Not yet performed"] · **Technical Design:** [Title, or "Not yet performed"]
+**Change brief:** changes/[change-slug]/change.md (Priority Cut applied)
 
 ## Ticket Dependency Chain
 
@@ -161,7 +161,7 @@ dependency forces it]
 **Ready to Start:** [Count of tickets with no unresolved dependencies]
 
 *Status here is as of this breakdown. Live status (delivered, reviewed, done) is derived from delivery records and reviews into `.gener8v/pipeline-state.yaml`; this table is not updated as tickets progress.*
-```
+````
 
 ---
 
@@ -169,6 +169,9 @@ dependency forces it]
 
 ### One Ticket, One Outcome
 Each ticket should produce a single, demonstrable outcome. If a ticket requires the developer to make unrelated decisions or produce multiple distinct artifacts, it should be split. The test: can you demo what this ticket accomplished in one sentence?
+
+### One Ticket, One File
+A ticket is read, delivered and reviewed alone, so it lives alone: `TICKET-NNN.md` opens with its title and the three header lines that say which change, area and specification it belongs to, then the fields. It must stand alone — a reader holding only that file knows what to build, what to read first, what to produce and what it blocks. The area-level narrative (overview, dependency chain, ordering, summary table) belongs in `backlog.md`, never inside a ticket, and no ticket exists only as a heading in another file.
 
 ### Acceptance Criteria Are the Contract
 Acceptance criteria define "done." They must be observable and verifiable—not aspirational. A ticket without clear acceptance criteria is a ticket that will be argued about at review time.
@@ -213,7 +216,7 @@ Every ticket must include an **Output** section that describes the files or dire
 
 2. **Identify Natural Boundaries**: Read through the Specification's requirements and look for natural groupings—subsections, data flows, interaction patterns, or state transitions that form coherent units of work.
 
-2b. **Load the Existing Artifact**: If the output file already exists, read it first. Every existing ID and heading is kept; new items are allocated above the current maximum ID; anything no longer applicable is marked `**Status:** Withdrawn` in place rather than deleted. IDs are append-only (`CONVENTIONS.md` §4) — code and downstream documents reference them, and renumbering silently re-binds those references.
+2b. **Load the Existing Directory**: If `tickets/[capability-area-slug]/` already exists, read every `TICKET-*.md` in it and its `backlog.md` first. Every existing ID and file is kept; a new ticket takes the next ID above the highest existing `TICKET-*.md` in that directory (append-only; never renumber); a ticket no longer applicable keeps its file with `**Status:** Withdrawn` at the top rather than being deleted; a delivered ticket's file is never rewritten. IDs are append-only (`CONVENTIONS.md` §4) — code and downstream documents reference them, and renumbering silently re-binds those references. If the area exists only as the legacy per-area file, run `split-tickets` first (see Output).
 
 3. **Draft Tickets**: For each boundary, create a ticket. Write the summary first, then map requirements, then define acceptance criteria.
 
@@ -229,17 +232,19 @@ Every ticket must include an **Output** section that describes the files or dire
 
 9. **Size Tickets**: Assign relative size. If any ticket is Large, evaluate whether it can be split without creating artificial boundaries.
 
-10. **Verify Coverage**: Check that every in-scope requirement and NFR appears in at least one ticket. Check that no requirement is orphaned; where the Priority Cut deliberately leaves one out, say so in the Overview. Check that every ticket has Priority, Value, Prior Art, Output, and Known Hazards sections, and that every ticket carrying an NFR names its verification method in the Acceptance Criteria.
+9b. **Write Each Ticket File**: As soon as a ticket's fields are complete, write it to its own `TICKET-NNN.md` — title, the three header lines, then the fields in the Output Format order. Do not hold finished tickets back for the backlog; a ticket file that exists is already deliverable.
+
+10. **Verify Coverage**: Check that every in-scope requirement and NFR appears in at least one ticket. Check that no requirement is orphaned; where the Priority Cut deliberately leaves one out, say so in the Overview. Check that every ticket file opens with the three header lines and has Priority, Value, Prior Art, Output, and Known Hazards sections, and that every ticket carrying an NFR names its verification method in the Acceptance Criteria.
 
 11. **Determine Ordering**: Propose an implementation sequence that weighs priority with dependencies and risk: Must before Should before Could, risky things first within a priority band, demonstrable capability early. A Could ticket never precedes a Must ticket unless a dependency forces it — and if one does, say which.
 
-12. **Build Summary Table**: Create the backlog summary with priority and dependency status so "ready to start" tickets — and the Must tickets among them — are immediately visible.
+12. **Write `backlog.md` Last**: Once every ticket file is written, write `backlog.md` — overview, source context, dependency chain, suggested ordering, and the backlog summary with priority and dependency status so "ready to start" tickets — and the Must tickets among them — are immediately visible. On a re-run, regenerate it from the whole directory, withdrawn tickets included.
 
 13. **Flag Gaps**: If open questions from upstream skills affect ticket definition, note them. If a ticket cannot be fully specified, say so and identify what is needed.
 
 ## Example
 
-The worked example decomposes the Search & Retrieval area of the Support Documentation Search System for the `support-search` change into four tickets — Priority and Value on every ticket, an NFR with its verification method on TICKET-003, Known Hazards, root-relative Output paths, and the Backlog Summary with its Priority column.
+The worked example decomposes the Search & Retrieval area of the Support Documentation Search System for the `support-search` change into four tickets — `backlog.md` plus `TICKET-001.md` … `TICKET-004.md`, each in its own file with the three header lines — with Priority and Value on every ticket, an NFR with its verification method on TICKET-003, Known Hazards, root-relative Output paths, and the Backlog Summary with its Priority column.
 It is at `skills/ticket-breakdown/references/example.md`.
 Read it before producing your first artifact of this kind.
 
@@ -253,24 +258,25 @@ Read it before producing your first artifact of this kind.
 - **Constraints Skill**: Provides constraints that shape acceptance criteria and surface implementation boundaries
 - **Dependencies Skill**: Provides sequencing information and external dependency awareness
 - **Technical Design Skill**: Provides architecture decisions, component boundaries, and interface contracts that inform ticket scope and Prior Art references
-- **Defect Sweep / Code, Quality and Security Review**: Route findings to tickets — sweep findings a Verdict says to fix now (`DS-XXX`) and review findings deferred to a new ticket (qualified `<change-slug>/<report-slug>/CR-XXX` etc.) — appended to the active change's breakdown for the owning area, or to a `fix-<subsystem>` change opened via Planning
+- **Defect Sweep / Code, Quality and Security Review**: Route findings to tickets — sweep findings a Verdict says to fix now (`DS-XXX`) and review findings deferred to a new ticket (qualified `<change-slug>/<report-slug>/CR-XXX` etc.) — added as new `TICKET-NNN.md` files to the owning area's `tickets/<area-slug>/` directory under the active change, or to a `fix-<subsystem>` change opened via Planning
 
 **Downstream:**
-- **Delivery Skill**: implements one ticket at a time from this breakdown
+- **Delivery Skill**: implements one ticket at a time, reading that ticket's `TICKET-NNN.md` and `backlog.md` for ordering context
 - **Orchestrate**: derives ticket status (blocked/ready/…) from each ticket's Depends On and the delivery records under the same change, orders ready tickets Must → Should → Could, and warns on a ticket with no Priority
 - **Audit Skill**: checks coverage, Prior Art/Output completeness and hazard quality
 
 ## Revisions
 
 - Re-run this skill when the source specification, constraints, dependencies, or technical design change in ways that affect ticket scope or ordering
-- When re-running, load the existing breakdown — tickets keep their IDs, delivered tickets are never rewritten, new tickets are added above the current maximum, obsolete undelivered tickets are marked Withdrawn
-- A new change gets its own breakdown file under `changes/<change-slug>/tickets/`; never append another change's tickets to this one, and never renumber against another file — IDs are only unique within a breakdown, which is why references from elsewhere are qualified
-- If only a single requirement changes, consider updating the affected ticket(s) rather than regenerating the entire breakdown
+- When re-running, load the existing directory — tickets keep their IDs and files, a delivered ticket's file is never rewritten, new tickets are added as new files above the current maximum, obsolete undelivered tickets keep their file with `**Status:** Withdrawn` at the top, and `backlog.md` is regenerated
+- A new change gets its own `tickets/<area-slug>/` directory under `changes/<change-slug>/`; never add another change's tickets to this one, and never renumber against another directory — IDs are only unique within a directory, which is why references from elsewhere are qualified
+- If only a single requirement changes, consider updating the affected undelivered ticket file(s) rather than regenerating the whole directory; a delivered ticket is never edited — the follow-up work becomes a new ticket
 - If the technical design introduces new architecture decisions, tickets may need new acceptance criteria or Prior Art references
 
 ## Notes
 
-- Generate one ticket breakdown per change and capability area; do not combine multiple capability areas — or multiple changes — into one breakdown
+- Generate one ticket directory per change and capability area; do not combine multiple capability areas — or multiple changes — into one directory
+- Re-running adds files; it never rewrites a delivered ticket's file
 - If a requirement spans multiple tickets, note this and ensure acceptance criteria collectively cover the full requirement
 - Large tickets should prompt reconsideration—can they be split without creating artificial boundaries?
 - Open questions from upstream skills that affect ticket definition should be listed; do not invent acceptance criteria to fill gaps left by unresolved questions

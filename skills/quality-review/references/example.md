@@ -4,7 +4,7 @@
 
 Reviewing the delivery of TICKET-001 from Search & Retrieval, "Implement query input interface", in the change `support-search` (the only active change, so it is the default).
 
-- Ticket: `.gener8v/changes/support-search/tickets/search-and-retrieval.md` — TICKET-001 covers SR-REQ-001, SR-REQ-002, SR-REQ-003
+- Ticket: `.gener8v/changes/support-search/tickets/search-and-retrieval/TICKET-001.md` — covers SR-REQ-001, SR-REQ-002, SR-REQ-003
 - Delivery record: `.gener8v/changes/support-search/delivery/search-and-retrieval-ticket-001-delivery.md` — Files Produced: `src/search/query_input.py`, `tests/search/test_query_input.py`; Verification Run: `pytest tests/search/test_query_input.py -q` (exit 0, 4 passed), `ruff check src/search tests/search` (exit 0)
 - `.gener8v/context.md`'s `## Repositories` table names the verify commands; all paths below are root-relative
 

@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
-"""gener8v pipeline state — deterministic scan of .gener8v/ (schema_version 3).
+"""gener8v pipeline state — deterministic scan of .gener8v/ (schema_version 4).
 
 Regex first, model second. Everything Orchestrate can decide by looking at which files exist and
 what their status lines say is decided here, so the model's attention is spent on recommendations.
 
 Layout (see CONVENTIONS.md §2): living artifacts at the top level, change artifacts under
-changes/<change-slug>/{change.md,tickets,delivery,reviews}. A legacy project with top-level
-tickets/, delivery/ and reviews/*-review.md is read as the pseudo-change "initial".
+changes/<change-slug>/{change.md,tickets,delivery,reviews}. Tickets are one file each:
+tickets/<area-slug>/TICKET-NNN.md (+ backlog.md). A legacy project with top-level tickets/,
+delivery/ and reviews/*-review.md is read as the pseudo-change "initial"; a legacy per-area
+ticket file (tickets/<area-slug>.md with "### TICKET-NNN:" sections) is read with a warning
+and split by `split-tickets`.
 
 Usage:
   gener8v-state.py state   [--root DIR] [--stdout [--json]]   # write .gener8v/pipeline-state.yaml (or print it; --json for CI)
   gener8v-state.py summary [--root DIR]              # short summary (what the SessionStart hook injects)
   gener8v-state.py lint    [--root DIR] [--src DIR]  # ID and coverage lints; exit 1 on ERROR
   gener8v-state.py metrics [--root DIR]              # derived metrics (YAML on stdout)
+  gener8v-state.py split-tickets [--root DIR] [--remove] [FILE ...]   # per-area ticket files -> one file per ticket
 
 No third-party dependencies. Python 3.8+.
 """
@@ -30,6 +34,8 @@ import sys
 
 ID_RE = re.compile(r"\b([A-Z]{2,4})-(REQ|NFR)-(\d{3,})\b")
 TICKET_HEAD_RE = re.compile(r"^###\s+(TICKET-\d{3,})\s*:", re.M)
+TICKET_H1_RE = re.compile(r"^#\s+(TICKET-\d{3,})\s*:\s*(.*)$", re.M)
+TICKET_FILE_RE = re.compile(r"^(TICKET-\d{3,})\.md$")
 TICKET_ID_RE = re.compile(r"\bTICKET-\d{3,}\b")
 FINDING_HEAD_RE = re.compile(r"^###\s+(CR|QR|SEC|DS|FIND)-\d{3,}\b", re.M)
 SEVERITY_RE = re.compile(r"^\*\*Severity:\*\*\s*([A-Za-z ]+)", re.M)
@@ -69,6 +75,17 @@ def rel(base, path):
 def field(text, name):
     m = re.search(r"^\*\*" + re.escape(name) + r":\*\*\s*(.*)$", text, re.M)
     return m.group(1).strip() if m else None
+
+
+def block(text, name):
+    """The lines that follow **Name:** up to the next **Field:** line or heading (multi-line fields)."""
+    m = re.search(r"^\*\*" + re.escape(name) + r":\*\*[^\n]*\n?", text, re.M)
+    if not m:
+        return ""
+    rest = text[m.start():]
+    body = rest[len(m.group(0)):]
+    n = re.search(r"^(\*\*[A-Z][^*\n]*:\*\*|#{1,3} |---\s*$)", body, re.M)
+    return m.group(0) + (body[: n.start()] if n else body)
 
 
 def now_iso():
@@ -169,9 +186,48 @@ def parse_tickets(text):
         title = body[: body.find("\n")].strip() if "\n" in body else body.strip()
         deps = TICKET_ID_RE.findall(field(body, "Depends On") or "")
         prio = (field(body, "Priority") or "").strip().split(" ")[0].strip("*") if field(body, "Priority") else None
-        reqs = sorted({f"{p}-{k}-{n}" for p, k, n in ID_RE.findall(field(body, "Requirements Covered") or body)})
+        reqs = sorted({f"{p}-{k}-{n}" for p, k, n in ID_RE.findall(block(body, "Requirements Covered") or body)})
         tickets[tid] = {"title": title, "depends_on": deps, "priority": prio, "requirements": reqs, "body": body}
     return tickets
+
+
+def parse_ticket_file(text):
+    """A one-ticket file: '# TICKET-NNN: title' then the ticket fields."""
+    m = TICKET_H1_RE.search(text)
+    title = m.group(2).strip() if m else ""
+    deps = TICKET_ID_RE.findall(field(text, "Depends On") or "")
+    prio = (field(text, "Priority") or "").strip().split(" ")[0].strip("*") if field(text, "Priority") else None
+    reqs = sorted({f"{p}-{k}-{n}" for p, k, n in ID_RE.findall(block(text, "Requirements Covered") or text)})
+    withdrawn = (field(text, "Status") or "").strip().lower().startswith("withdrawn")
+    return {"title": title, "depends_on": deps, "priority": prio, "requirements": reqs, "body": text, "withdrawn": withdrawn}
+
+
+def discover_tickets(tdir):
+    """-> {area_slug: {"dir": path|None, "legacy_file": path|None, "backlog": path|None, "tickets": {TICKET-NNN: {...}}}}"""
+    areas = {}
+    for d in sorted(p for p in glob.glob(os.path.join(tdir, "*")) if os.path.isdir(p)):
+        aslug = os.path.basename(d)
+        tickets = {}
+        for f in sorted(glob.glob(os.path.join(d, "TICKET-*.md"))):
+            m = TICKET_FILE_RE.match(os.path.basename(f))
+            if not m:
+                continue
+            tk = parse_ticket_file(read(f))
+            tk["file"] = f
+            tickets[m.group(1)] = tk
+        bl = os.path.join(d, "backlog.md")
+        areas[aslug] = {"dir": d, "legacy_file": None, "backlog": bl if exists(bl) else None, "tickets": tickets}
+    for f in sorted(glob.glob(os.path.join(tdir, "*.md"))):
+        aslug = os.path.splitext(os.path.basename(f))[0]
+        legacy = parse_tickets(read(f))
+        for tid, tk in legacy.items():
+            tk["file"] = f
+            tk["withdrawn"] = False
+        if aslug in areas:
+            areas[aslug]["legacy_file"] = f          # directory wins; the file is ignored and flagged
+        else:
+            areas[aslug] = {"dir": None, "legacy_file": f, "backlog": None, "tickets": legacy}
+    return areas
 
 
 def parse_brief(text):
@@ -219,21 +275,29 @@ def scan_change(g, slug, cdir, legacy, delivered_areas_index):
     }
     flat = []
     tdir, ddir, rdir = (os.path.join(cdir, "tickets"), os.path.join(cdir, "delivery"), os.path.join(cdir, "reviews"))
-    ticket_files = sorted(glob.glob(os.path.join(tdir, "*.md")))
+    found = discover_tickets(tdir)
     brief_rows = parse_brief(brief) if brief else []
     for area_name, kind, reqs_cell in brief_rows:
         aslug = slugify(area_name)
         entry["areas"].append(aslug)
         if "pending" in reqs_cell.lower() or not ID_RE.search(reqs_cell):
             entry["pending_specification"].append(aslug)
-        if not exists(os.path.join(tdir, f"{aslug}.md")):
+        if aslug not in found or not found[aslug]["tickets"]:
             entry["pending_breakdown"].append(aslug)
-    for tf in ticket_files:
-        aslug = os.path.splitext(os.path.basename(tf))[0]
+    for aslug, info in found.items():
         if aslug not in entry["areas"]:
             entry["areas"].append(aslug)
-        tickets = parse_tickets(read(tf))
-        entry["areas_detail"][aslug] = {"tickets": rel(g, tf), "ticket_count": len(tickets)}
+        tickets = {tid: tk for tid, tk in info["tickets"].items() if not tk.get("withdrawn")}
+        entry["areas_detail"][aslug] = {
+            "tickets_dir": os.path.relpath(info["dir"], g) if info["dir"] else None,
+            "backlog": rel(g, info["backlog"]) if info["backlog"] else None,
+            "ticket_count": len(tickets),
+            "legacy_file": rel(g, info["legacy_file"]) if info["legacy_file"] else None,
+        }
+        if info["legacy_file"] and info["dir"]:
+            entry.setdefault("warnings", []).append(f"change '{slug}': tickets/{aslug}.md is ignored because tickets/{aslug}/ exists — delete the file")
+        elif info["legacy_file"]:
+            entry.setdefault("warnings", []).append(f"change '{slug}': tickets/{aslug}.md holds several tickets in one file — run `gener8v-state.py split-tickets --remove` to give each ticket its own file")
         delivered_ids = set()
         for tid in tickets:
             dp = os.path.join(ddir, f"{aslug}-{tid.lower()}-delivery.md")
@@ -268,6 +332,7 @@ def scan_change(g, slug, cdir, legacy, delivered_areas_index):
             amend = bool(dtext) and bool(re.search(r"^## Post-Review Amendments\s*\n+(?!\s*None\b)\S", dtext, re.M))
             e = {
                 "title": t["title"], "priority": t["priority"], "status": status, "done": done,
+                "ticket_file": rel(g, t["file"]),
                 "depends_on": t["depends_on"], "requirements": t["requirements"],
                 "delivery": rel(g, dp), "delivery_status": dstatus, "verification": verification,
                 "code_review": reviews["code"], "quality_review": reviews["quality"], "security_review": reviews["security"],
@@ -313,7 +378,7 @@ def scan_change(g, slug, cdir, legacy, delivered_areas_index):
 def scan(root):
     g = find_gener8v(root)
     state = {
-        "generated": now_iso(), "schema_version": 3, "stage": "not_started", "prd_title": None,
+        "generated": now_iso(), "schema_version": 4, "stage": "not_started", "prd_title": None,
         "system_context": False, "has_source": has_source_tree(root), "active_changes": [], "approvals_pending": 0,
         "capability_areas": {}, "changes": {}, "cross_cutting": {}, "next_steps": [], "warnings": [], "totals": {},
     }
@@ -336,7 +401,7 @@ def scan(root):
         "flows": sorted(rel(g, p) for p in glob.glob(os.path.join(g, "flows", "*.md"))),
         "sweeps": sorted(rel(g, p) for p in glob.glob(os.path.join(g, "sweeps", "*.md"))),
         "assessments": sorted(rel(g, p) for p in glob.glob(os.path.join(g, "reviews", "*-assessment.md"))),
-        "legacy_layout": bool(glob.glob(os.path.join(g, "tickets", "*.md")) or glob.glob(os.path.join(g, "delivery", "*.md"))),
+        "legacy_layout": bool(glob.glob(os.path.join(g, "tickets", "*")) or glob.glob(os.path.join(g, "delivery", "*.md"))),
     }
     state["cross_cutting"] = cc
 
@@ -413,7 +478,7 @@ def scan(root):
         entry, flat = scan_change(g, "initial", g, True, delivered_index)
         state["changes"]["initial"] = entry
         all_tickets.extend(flat)
-        state["warnings"].append("Legacy layout: tickets/, delivery/ and reviews/*-review.md at the top level are read as change 'initial' — migrate with `git mv tickets delivery changes/initial/` (and reviews/*-review.md into changes/initial/reviews/)")
+        state["warnings"].append("Legacy layout: tickets/, delivery/ and reviews/*-review.md at the top level are read as change 'initial' — migrate with `mkdir -p changes/initial/reviews && git mv tickets delivery changes/initial/ && git mv reviews/*-review.md changes/initial/reviews/`")
     for slug, ch in state["changes"].items():
         totals["changes"] += 1
         for aslug in ch["areas"]:
@@ -423,6 +488,8 @@ def scan(root):
                 state["warnings"].append(f"change '{slug}' names area '{aslug}' which is not in the PRD")
         if ch.get("warning"):
             state["warnings"].append(ch.pop("warning"))
+        for w in ch.pop("warnings", []):
+            state["warnings"].append(w)
         if ch["brief"] and ch["approved"] is False:
             approvals_pending += 1
         p = ch["progress"]
@@ -581,8 +648,7 @@ def compute_metrics(root):
         for key, e in ch["deliveries"].items():
             if not (e["delivery"] and (e["delivery_status"] or "").lower().startswith("delivered")):
                 continue
-            aslug = key.split("/")[0]
-            tf = ch["areas_detail"].get(aslug, {}).get("tickets")
+            tf = e.get("ticket_file")
             if not tf:
                 continue
             t0 = git_first_date(root, os.path.join(".gener8v", tf))
@@ -661,6 +727,82 @@ def cmd_metrics(args):
     return 0
 
 
+def split_ticket_file(path, remove=False):
+    """tickets/<area>.md (legacy) -> tickets/<area>/TICKET-NNN.md + backlog.md. Returns list of written paths."""
+    text = read(path)
+    tickets = parse_tickets(text)
+    if not tickets:
+        return []
+    area_dir = os.path.splitext(path)[0]
+    aslug = os.path.basename(area_dir)
+    cdir = os.path.dirname(os.path.dirname(path))
+    cslug = os.path.basename(cdir) if os.path.basename(os.path.dirname(cdir)) == "changes" else "initial"
+    area_name = None
+    m = re.search(r"^#\s+(.+?)\s+[—–-]+\s+Ticket Breakdown", text, re.M)
+    if m:
+        area_name = m.group(1).strip()
+    os.makedirs(area_dir, exist_ok=True)
+    written = []
+    heads = list(TICKET_HEAD_RE.finditer(text))
+    for i, hm in enumerate(heads):
+        tid = hm.group(1)
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
+        seg = text[hm.end():end]
+        title = seg[: seg.find("\n")].strip() if "\n" in seg else seg.strip()
+        body = seg[seg.find("\n") + 1:] if "\n" in seg else ""
+        body = re.sub(r"\n---\s*$", "\n", body.rstrip()) + "\n"
+        # stop at the first area-level section that may follow the last ticket
+        for marker in ("\n## Ticket Dependency Chain", "\n## Suggested Ordering", "\n## Backlog Summary"):
+            k = body.find(marker)
+            if k != -1:
+                body = body[:k].rstrip() + "\n"
+        header = (f"# {tid}: {title}\n\n**Change:** {cslug}\n**Capability Area:** {area_name or aslug} ({aslug})\n"
+                  f"**Specification:** specifications/{aslug}.md\n\n")
+        out = os.path.join(area_dir, f"{tid}.md")
+        with open(out, "w", encoding="utf-8") as fh:
+            fh.write(header + body.lstrip("\n"))
+        written.append(out)
+    # backlog.md: everything outside the ticket sections
+    first, last_end = heads[0].start(), len(text)
+    tail_start = None
+    for marker in ("\n## Ticket Dependency Chain", "\n## Suggested Ordering", "\n## Backlog Summary"):
+        k = text.find(marker, heads[-1].end())
+        if k != -1:
+            tail_start = k if tail_start is None else min(tail_start, k)
+    head_part = text[:first].rstrip()
+    head_part = re.sub(r"\n## Tickets\s*$", "", head_part).rstrip()
+    tail_part = text[tail_start:].strip() if tail_start is not None else ""
+    if area_name:
+        head_part = re.sub(r"^#\s+.+$", f"# {area_name} — Backlog ({cslug})", head_part, count=1, flags=re.M)
+    bl = os.path.join(area_dir, "backlog.md")
+    with open(bl, "w", encoding="utf-8") as fh:
+        fh.write(head_part + "\n\n" + tail_part + ("\n" if tail_part else ""))
+    written.append(bl)
+    if remove:
+        os.remove(path)
+    return written
+
+
+def cmd_split(args):
+    g = find_gener8v(args.root)
+    files = list(args.files or [])
+    if not files:
+        if not g:
+            print("no .gener8v/ directory"); return 1
+        files = sorted(glob.glob(os.path.join(g, "changes", "*", "tickets", "*.md")) + glob.glob(os.path.join(g, "tickets", "*.md")))
+    total = 0
+    for f in files:
+        if not exists(f):
+            print(f"skip {f}: not a file"); continue
+        w = split_ticket_file(f, remove=args.remove)
+        if not w:
+            print(f"skip {os.path.relpath(f, args.root)}: no '### TICKET-NNN:' sections"); continue
+        total += len(w) - 1
+        print(f"{os.path.relpath(f, args.root)} -> {os.path.relpath(os.path.dirname(w[0]), args.root)}/ ({len(w) - 1} ticket file(s) + backlog.md)" + ("" if args.remove else " — original kept; delete it or rerun with --remove"))
+    print(f"{total} ticket file(s) written")
+    return 0
+
+
 def cmd_lint(args):
     g = find_gener8v(args.root)
     if not g:
@@ -682,19 +824,38 @@ def cmd_lint(args):
             prefix_owner.setdefault(pre, slug)
         if not ids:
             warns.append(f"specifications/{slug}.md has no [PREFIX]-REQ-XXX requirements")
-    # 2. coverage: every REQ/NFR appears in some ticket file (any change, legacy included) or has an @spec Coverage row
-    ticket_files = glob.glob(os.path.join(g, "changes", "*", "tickets", "*.md")) + glob.glob(os.path.join(g, "tickets", "*.md"))
+    # 2. coverage: every REQ/NFR appears in some ticket (any change, legacy included) or has an @spec Coverage row
+    REQUIRED = ("Prior Art", "Output", "Known Hazards", "Acceptance Criteria", "Priority", "Value")
+    HEADERS = ("Change", "Capability Area", "Specification")
+    ticket_files = []   # every file that holds ticket text (one-per-ticket and legacy)
     covered = set()
-    for tf in ticket_files:
-        covered |= {f"{p}-{k}-{n}" for p, k, n in ID_RE.findall(read(tf))}
-        body = read(tf)
-        cslug = os.path.basename(os.path.dirname(os.path.dirname(tf))) if "/changes/" in tf.replace(os.sep, "/") else "initial"
-        for m in TICKET_HEAD_RE.finditer(body):
-            seg_end = body.find("\n### ", m.end())
-            seg = body[m.end(): seg_end if seg_end != -1 else len(body)]
-            for sec in ("Prior Art", "Output", "Known Hazards", "Acceptance Criteria", "Priority", "Value"):
-                if f"**{sec}:**" not in seg:
-                    warns.append(f"{cslug}/{os.path.basename(tf)} {m.group(1)} lacks a **{sec}:** section")
+    for tdir in glob.glob(os.path.join(g, "changes", "*", "tickets")) + [os.path.join(g, "tickets")]:
+        if not os.path.isdir(tdir):
+            continue
+        cslug = os.path.basename(os.path.dirname(tdir)) if os.path.basename(os.path.dirname(tdir)) != ".gener8v" else "initial"
+        for aslug, info in discover_tickets(tdir).items():
+            if info["dir"] and not info["backlog"]:
+                warns.append(f"{cslug}/tickets/{aslug}/ has no backlog.md (overview, dependency chain, suggested ordering)")
+            if info["legacy_file"]:
+                ticket_files.append(info["legacy_file"])
+                warns.append(f"{cslug}/tickets/{aslug}.md holds several tickets in one file — run `gener8v-state.py split-tickets --remove`")
+            for tid, tk in info["tickets"].items():
+                covered |= set(tk["requirements"])
+                text = tk["body"]
+                where = f"{cslug}/tickets/{aslug}/{tid}.md" if info["dir"] else f"{cslug}/tickets/{aslug}.md {tid}"
+                if tk.get("file") and tk["file"] not in ticket_files:
+                    ticket_files.append(tk["file"])
+                if tk.get("withdrawn"):
+                    continue
+                for sec in REQUIRED:
+                    if f"**{sec}:**" not in text:
+                        warns.append(f"{where} lacks a **{sec}:** section")
+                if info["dir"]:
+                    if not TICKET_H1_RE.search(text):
+                        warns.append(f"{where} does not open with '# {tid}: title'")
+                    for h in HEADERS:
+                        if f"**{h}:**" not in text:
+                            warns.append(f"{where} lacks the **{h}:** header line")
     for slug, ids in spec_ids.items():
         stext = read(os.path.join(g, "specifications", f"{slug}.md"))
         cov_rows = {f"{p}-{k}-{n}" for p, k, n in ID_RE.findall(stext.split("## @spec Coverage")[-1])} if "## @spec Coverage" in stext else set()
@@ -733,7 +894,7 @@ def cmd_lint(args):
     # 4. dangling references
     known = set().union(*[set(d) for d in spec_ids.values()]) if spec_ids else set()
     if known:
-        for p in sorted(ticket_files + glob.glob(os.path.join(g, "changes", "*", "*.md")) + glob.glob(os.path.join(g, "changes", "*", "*", "*.md")) + glob.glob(os.path.join(g, "delivery", "*.md")) + glob.glob(os.path.join(g, "reviews", "*.md")) + glob.glob(os.path.join(g, "technical-design", "*.md")) + glob.glob(os.path.join(g, "constraints", "*.md"))):
+        for p in sorted(set(ticket_files + glob.glob(os.path.join(g, "changes", "*", "*.md")) + glob.glob(os.path.join(g, "changes", "*", "*", "*.md")) + glob.glob(os.path.join(g, "changes", "*", "tickets", "*", "*.md")) + glob.glob(os.path.join(g, "delivery", "*.md")) + glob.glob(os.path.join(g, "reviews", "*.md")) + glob.glob(os.path.join(g, "technical-design", "*.md")) + glob.glob(os.path.join(g, "constraints", "*.md")))):
             refs = {f"{pre}-{k}-{num}" for pre, k, num in ID_RE.findall(read(p))}
             dangling = sorted(refs - known)
             if dangling:
@@ -760,7 +921,9 @@ def cmd_lint(args):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["state", "summary", "lint", "metrics"])
+    ap.add_argument("command", choices=["state", "summary", "lint", "metrics", "split-tickets"])
+    ap.add_argument("files", nargs="*", help="split-tickets: legacy per-area ticket files (default: all under .gener8v/)")
+    ap.add_argument("--remove", action="store_true", help="split-tickets: delete the legacy file after splitting")
     ap.add_argument("--root", default=os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
     ap.add_argument("--stdout", action="store_true", help="state: print instead of writing the file")
     ap.add_argument("--json", action="store_true", help="state: print JSON to stdout (implies --stdout; no dependencies for CI gates)")
@@ -768,7 +931,7 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=6, help="summary: max next steps to show")
     ap.add_argument("--src", default=None, help="lint: source root to grep for @spec (default: --root)")
     args = ap.parse_args(argv)
-    return {"state": cmd_state, "summary": cmd_summary, "lint": cmd_lint, "metrics": cmd_metrics}[args.command](args)
+    return {"state": cmd_state, "summary": cmd_summary, "lint": cmd_lint, "metrics": cmd_metrics, "split-tickets": cmd_split}[args.command](args)
 
 
 if __name__ == "__main__":

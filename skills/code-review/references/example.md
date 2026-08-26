@@ -4,6 +4,8 @@
 
 Reviewing the delivery of TICKET-001 from Search & Retrieval, in the change `support-search`: "Implement query input interface"
 
+Ticket at `.gener8v/changes/support-search/tickets/search-and-retrieval/TICKET-001.md`.
+
 Delivery record at `.gener8v/changes/support-search/delivery/search-and-retrieval-ticket-001-delivery.md` shows:
 - Files Produced: `src/search/query_input.py`, `tests/search/test_query_input.py`
 - Requirements Covered: SR-REQ-001, SR-REQ-002, SR-REQ-003
