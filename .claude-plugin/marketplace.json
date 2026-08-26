@@ -4,15 +4,15 @@
     "name": "gener8v"
   },
   "metadata": {
-    "description": "A structured pipeline for turning ideas into delivered, reviewed code — from PRD through specification, constraints, dependencies, technical design, ticket breakdown, delivery, and code review. Works for greenfield and brownfield projects.",
-    "version": "0.1.0"
+    "description": "A structured pipeline for turning ideas into delivered, reviewed code — PRD, specification, constraints, dependencies, technical design, tickets, delivery with @spec traceability, code/quality/security reviews, OWASP and architecture assessments, flow maps, defect sweeps, audit and orchestration — with hooks that keep pipeline state in front of every session. Greenfield and brownfield.",
+    "version": "0.2.0"
   },
   "plugins": [
     {
-      "name": "gener8v-claude-skills",
+      "name": "gener8v",
       "source": "./",
-      "description": "A structured pipeline for turning ideas into delivered, reviewed code — from PRD through specification, constraints, dependencies, technical design, ticket breakdown, delivery, and code review. Works for greenfield and brownfield projects.",
-      "version": "0.1.0",
+      "description": "A structured pipeline for turning ideas into delivered, reviewed code — PRD, specification, constraints, dependencies, technical design, tickets, delivery with @spec traceability, code/quality/security reviews, OWASP and architecture assessments, flow maps, defect sweeps, audit and orchestration — with hooks that keep pipeline state in front of every session. Greenfield and brownfield.",
+      "version": "0.2.0",
       "strict": true
     }
   ]

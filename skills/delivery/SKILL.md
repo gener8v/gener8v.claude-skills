@@ -1,4 +1,14 @@
+---
+name: delivery
+description: "Implement one ticket: reconcile its assumptions against the real codebase, get an implementation plan approved, write the code with @spec annotations, and keep the delivery record current from plan approval onward. The only skill that changes source code. Use when a ticket's dependencies are delivered and it is ready to build."
+argument-hint: "<capability area> <TICKET-XXX> [in <change-slug>]"
+disable-model-invocation: true
+---
 # Delivery Skill
+
+**Invoked with:** `$ARGUMENTS`
+
+If that is empty, ask the user which ticket (capability area + TICKET-XXX) to deliver before doing anything else. The ticket belongs to a change: when exactly one change is active (status `ready` or `in_delivery` in `pipeline-state.yaml`), default to it; when several are active and the argument does not name one (`in <change-slug>`), ask which. Never guess the target.
 
 ## Purpose
 
@@ -9,7 +19,7 @@ Reconciliation comes first because a ticket — however well-specified — encod
 ## When to Use
 
 Use this skill when:
-- A ticket from `.gener8v/tickets/` is ready for implementation (no unresolved blockers in its Depends On field)
+- A ticket from `.gener8v/changes/<change-slug>/tickets/` is ready for implementation (no unresolved blockers in its Depends On field)
 - The user wants to implement a specific ticket
 - All predecessor tickets (from the Depends On field) have been delivered
 - The team is ready to move from planning artifacts to working code
@@ -18,19 +28,23 @@ Use this skill when:
 
 **Source:** A single ticket from a ticket breakdown, plus all pipeline artifacts referenced in the ticket's Prior Art
 **Read from:**
-- Ticket breakdown: `.gener8v/tickets/[capability-area-slug].md`
+- Ticket breakdown: `.gener8v/changes/[change-slug]/tickets/[capability-area-slug].md`
 - The specific ticket within that file (identified by TICKET-XXX)
+- Change brief: `.gener8v/changes/[change-slug]/change.md` — its Status (Draft or Approved) and Priority Cut
 - Prior Art as declared in the ticket (pipeline documents and predecessor ticket outputs)
 - Technical Design: `.gener8v/technical-design/[capability-area-slug].md` or `.gener8v/technical-design/system-design.md` (if available)
-- Constraints: `.gener8v/constraints/[capability-area-slug].md` (if available)
-- System Context: `.gener8v/context.md` (if available)
-- Predecessor delivery records: `.gener8v/delivery/*-delivery.md` (for dependent tickets)
+- Constraints: `.gener8v/constraints/prd.md` and `.gener8v/constraints/[capability-area-slug].md` (whichever exist — PRD-level constraints apply to every ticket)
+- System Context: `.gener8v/context.md` (if available — its `## Repositories` table names each repository's directory and verify commands; its testing and build sections add detail)
+- Conventions: `.gener8v/CONVENTIONS.md`
+- Predecessor delivery records: `.gener8v/changes/[change-slug]/delivery/*-delivery.md` (for dependent tickets), including their `## Post-Review Amendments`
+- Predecessor review reports: `.gener8v/changes/[change-slug]/reviews/*-{code,quality,security}-review.md` for every ticket in Depends On and for any predecessor whose Files Produced overlap this ticket's Output — findings deferred "to the next ticket" and accepted risks live there. Predecessors normally sit under the same change; a dependency on an earlier change's ticket is read from that change's directory
 - Existing codebase files referenced in Prior Art
 
-**Expects:** A ticket with Summary, Requirements Covered, Prior Art, Acceptance Criteria, Output, Constraints, and Size fields. Predecessor tickets in the Depends On field should have delivery records.
+**Expects:** A ticket with Summary, Priority, Value, Requirements Covered, Prior Art, Acceptance Criteria, Output, Constraints, and Size fields. Predecessor tickets in the Depends On field should have delivery records.
 
 **If input is missing or malformed:**
-- If no ticket breakdown exists for the target capability area, stop and recommend running the Ticket Breakdown skill first
+- If several changes are active and none is named, ask which one before reading anything
+- If no ticket breakdown exists for the target capability area under the change, stop and recommend running the Ticket Breakdown skill first (`ticket-breakdown <area> for <change-slug>`)
 - If predecessor tickets have not been delivered, warn the user — the ticket's Prior Art may reference files that do not yet exist
 - If technical design or constraints are missing, proceed but note the gap — implementation decisions may lack architectural context
 
@@ -40,11 +54,15 @@ Use this skill when:
 1. The actual code files declared in the ticket's Output section (written to the real codebase)
 2. A delivery record documenting what was planned, built, and decided
 
-**Write to:** `.gener8v/delivery/[capability-area-slug]-[ticket-id]-delivery.md`
-**Creates directory:** `.gener8v/delivery/` if it does not exist
+**Write to:** `.gener8v/changes/[change-slug]/delivery/[capability-area-slug]-[ticket-id]-delivery.md`
+**Creates directory:** `.gener8v/changes/[change-slug]/delivery/` if it does not exist
 **Naming convention:** Combines the capability area slug with the lowercase ticket ID (e.g., `search-and-retrieval-ticket-001-delivery.md`)
 
 The delivery record is the bridge between pipeline artifacts and the real codebase. Downstream skills (reviews, audits, orchestrate) read delivery records to locate implemented code.
+
+The record is **written early and updated as the delivery progresses** — first after reconciliation (`Status: Reconciled`), again the moment the plan is approved (`Status: In Progress`, plan preserved verbatim, a `## Progress` checklist), and finally when the code is verified (`Status: Delivered`). Nothing the user approved lives only in the conversation; a compaction or a new session resumes from the record.
+
+Delivery also appends rows to the living specification's `## @spec Coverage` table (`.gener8v/specifications/[capability-area-slug].md`) for every requirement it annotated, with root-relative code locations — that section is promised by the Specification skill and this is the skill that keeps the promise.
 
 ## Output Format
 
@@ -55,11 +73,13 @@ Produce a markdown document with the following structure:
 
 ## Ticket Reference
 
-**Ticket:** [TICKET-XXX from capability-area-slug]
+**Ticket:** [<change-slug>/<capability-area-slug>/TICKET-XXX]
+**Change:** [`.gener8v/changes/<change-slug>/change.md` — and its Status at the time delivery started]
 **Specification:** [Link to specification file]
 **Requirements Covered:**
 - [XX]-REQ-XXX: [Brief description]
 - [XX]-REQ-XXX: [Brief description]
+- [XX]-NFR-XXX: [Brief description — and the verification method the ticket names for it]
 
 ## Pre-Flight Reconciliation
 
@@ -67,11 +87,12 @@ Produce a markdown document with the following structure:
 
 | Assumption (from ticket) | Expected | Found in repo | Status |
 |--------------------------|----------|---------------|--------|
-| [e.g., table `segment_archive_snapshots` exists] | present | not in schema.ts or migrations | ❌ Blocking |
-| [e.g., `scripts/pre-build-gate.sh` exists] | present | absent | ❌ Blocking |
-| [e.g., Doc #16_07 present at v1.4] | v1.4 | v1.2 in repo | ❌ Blocking |
-| [e.g., `carrier_commission_rates.lob_id` nullable] | nullable | NOT NULL (`schema.ts:NNNN`) | ⚠️ Resolves a Decision Point → Path A |
-| [e.g., predecessor TICKET-002 output exists] | `src/search/index-client.ts` | present | ✅ |
+| [e.g., table `document_index` exists] | present | not in schema.ts or migrations | ❌ Blocking |
+| [e.g., `scripts/build-index.sh` exists] | present | absent | ❌ Blocking |
+| [e.g., Prior Art document present at the pinned version] | v1.4 | v1.2 in repo | ❌ Blocking |
+| [e.g., `documents.source_ref` nullable] | nullable | NOT NULL (`api/src/db/schema.ts:NNNN`) | ⚠️ Resolves a Decision Point → Path A |
+| [e.g., predecessor TICKET-002 output exists] | `api/src/search/index-client.ts` | present | ✅ |
+| [Carried finding: `<change-slug>/<capability-area-slug>-ticket-001-code-review/CR-001` deferred to this ticket] | addressed here | — | 🔁 Carried — see Implementation Plan |
 
 **Resolved from ground truth (not escalated):** [Open questions / Decision Points the ticket left for the user that the code already answers, with evidence — e.g., "PDF approach: repo already depends on `pdfkit`, so the jsPDF-vs-Puppeteer choice is moot."]
 
@@ -79,30 +100,54 @@ Produce a markdown document with the following structure:
 
 ## Implementation Plan
 
-[The plan as approved by the user in Phase 1. Preserved verbatim so
-deviations can be compared against the original intent.]
+**Repository:** [directory from `context.md`'s `## Repositories` table — `.` for a single repository; its verify commands and the commit belong to it. An atomic ticket that must touch two repositories names both.]
+**Plan approved by:** [Engineer — <name>, YYYY-MM-DD — or `pending` until Phase 2 approval]
+
+[The plan as approved by the user in Phase 2. Preserved verbatim so
+deviations can be compared against the original intent. Written the moment it is approved.]
 
 ### Planned Files
 
-- [file path]: [what it will contain and why]
-- [file path]: [what it will contain and why]
+- [root-relative file path]: [what it will contain and why]
+- [root-relative file path]: [what it will contain and why]
 
 ### How Acceptance Criteria Will Be Met
 
+- [Criterion]: [How the plan addresses it — and which test will prove it]
 - [Criterion]: [How the plan addresses it]
-- [Criterion]: [How the plan addresses it]
+
+## Progress
+
+[One line per planned file, updated as each lands. This is what a resumed session reads first.]
+
+- [x] `src/search/query_input.py` — written, annotated
+- [ ] `tests/search/test_query_input.py` — pending
 
 ## Delivery Summary
 
-**Status:** [Delivered / Partial / Blocked]
+**Status:** [Reconciled / In Progress / Delivered / Partial / Blocked]
+**Verification:** [passed / failed / not run]
+**Reviews Deferred:** [none — or `quality, security — <reason>` when the scale decision defers a review; the ticket can still reach done]
 **Files Produced:**
-- [file path]: [what was actually created or modified — brief description]
-- [file path]: [what was actually created or modified — brief description]
+- [root-relative file path]: [what was actually created or modified — brief description]
+- [root-relative file path]: [what was actually created or modified — brief description]
+
+## Verification Run
+
+[The commands actually executed, verbatim, with exit codes. Sourced from the named repository's Verify commands in `context.md`'s `## Repositories` table (or its testing and build sections) or the repository's own scripts. Includes every NFR check the ticket carries that is executable — a benchmark, a load test, an accessibility lint. "Tests pass" without a command and an exit code is not verification.]
+
+| Command | Exit | Evidence |
+|---------|------|----------|
+| `pytest tests/search -q` | 0 | 6 passed |
+| `ruff check src/search` | 0 | — |
+| `mypy src/search` | 0 | — |
 
 ## Acceptance Criteria Verification
 
-- [x] [Criterion from ticket] — [how it was satisfied in the delivered code]
+- [x] [Criterion from ticket] — [the executed test or command that proves it, from the Verification Run]
 - [x] [Another criterion] — [how it was satisfied]
+- [ ] [Unverified criterion] — [it is implemented but no executed check covers it; say what would]
+- [ ] [XX]-NFR-XXX [non-executable NFR] — Unverified; [what would verify it — the method the specification names, and who runs it]
 - [ ] [Unsatisfied criterion, if any] — [why not met, what is needed]
 
 ## Decisions Made
@@ -127,7 +172,7 @@ If nothing changed, state "None — implementation followed the approved plan."]
 
 | Requirement | Code Location | Annotation |
 |-------------|---------------|------------|
-| [XX]-REQ-XXX | [file:function or class] | `@spec [XX]-REQ-XXX` |
+| [XX]-REQ-XXX | [root-relative file:function or class] | `@spec [XX]-REQ-XXX` |
 
 [Any requirements that could not be annotated, with explanation.]
 
@@ -135,6 +180,11 @@ If nothing changed, state "None — implementation followed the approved plan."]
 
 [Implementation observations, warnings for downstream tickets,
 performance considerations, or anything the next developer should know.]
+
+## Post-Review Amendments
+
+[Appended by the review skills during interactive resolution. One entry per applied change:
+finding ID (qualified, e.g. `support-search/search-and-retrieval-ticket-001-code-review/CR-002`), what changed, files touched, re-verification result. "None" until a review changes something.]
 ```
 
 ---
@@ -144,8 +194,14 @@ performance considerations, or anything the next developer should know.]
 ### Reconcile Against Ground Truth Before Planning
 A ticket's assumptions are claims to verify, not facts to trust. Before drafting the implementation plan, check every assumption the ticket depends on against the actual repository: do the schema objects it references (tables, columns, enums, constraints) exist in the schema/migrations? Do the files, scripts, and commands it invokes exist? Is every document in Prior Art / Required Reading present at the pinned version? Did predecessor tickets actually produce the outputs this ticket builds on? Resolve from the code what the code can answer — and note where the answer closes an open question the ticket left for the user (e.g., a "Decision Point" that the existing schema already settles). If a *blocking* assumption is false (a required table is missing, a referenced script does not exist, a pinned doc is absent), stop and report — set delivery status to **Blocked** with the reconciliation findings, and do not proceed to planning. The "build-on-existing-schema" premise is the most common silent failure; verify it explicitly.
 
+### Checkpoint the Record
+The delivery record is not a report written at the end; it is the ticket's working memory. Reconciliation results go in as soon as they exist, the plan goes in the moment it is approved, progress is ticked as files land. If the context is compacted or the session ends mid-implementation, the next session opens the record and continues — it never has to reconstruct a plan the user already approved, and never re-asks for approval.
+
+### Verified, Not Inspected
+An acceptance criterion is satisfied when an executed check proves it — a test, a type-check, a build, a query — and the Verification Run records the command and its exit code. Reading the code and finding it plausible is not verification. A criterion with no executed evidence is recorded as Unverified, not ticked. The same rule covers the NFRs a ticket carries: where the specification's verification method is executable (a benchmark, a load test, a lint) it runs in the Verification Run; where it is not, the NFR is Unverified with what would verify it.
+
 ### Plan Before You Build
-Never start writing code without presenting the implementation plan to the user first. The plan describes which files will be created or modified, what each will contain, and how acceptance criteria will be met. User approval is the gate between planning and execution. This prevents wasted effort and ensures alignment before code is written.
+Never start writing code without presenting the implementation plan to the user first. The plan describes which files will be created or modified, what each will contain, and how acceptance criteria will be met. User approval is the gate between planning and execution. This prevents wasted effort and ensures alignment before code is written. The approval is recorded, not just given: the record carries `**Plan approved by:** Engineer — <name>, YYYY-MM-DD`. One person may hold every role; the record still names the role, so a reader knows which hat approved the plan.
 
 ### Prior Art Is Your Context Window
 Read everything the ticket's Prior Art section points to before planning. For first tickets in a chain, this means pipeline documents (specifications, constraints, technical design). For later tickets, this means the actual code files produced by predecessor tickets plus their delivery records. Do not guess what predecessor tickets produced — read the actual files.
@@ -177,20 +233,23 @@ function processQuery(text: string) {
 
 Place annotations on the line immediately above the declaration. One annotation per code location, listing all requirement IDs implemented there. A requirement may appear in multiple annotations if it is implemented across multiple locations. These annotations make traceability greppable (`grep -r "@spec" src/`) and survive beyond the review phase — any developer can trace code back to requirements without consulting pipeline artifacts.
 
+### Predecessors' Reviews Are Prior Art Too
+A finding a review deferred "to the next ticket", and a risk it accepted on a file this ticket will edit, are part of this ticket's context. Read the predecessor reviews, list carried findings in the reconciliation table, and address or consciously carry each one.
+
 ### Stay in Your Lane
 Only implement what this ticket specifies. Do not refactor adjacent code, add unrequested features, or "fix" things you notice in predecessor output. If something needs attention, note it in the delivery record — it belongs in a separate ticket. Scope discipline prevents one ticket from silently changing the foundation that other tickets depend on.
 
 ## Process
 
-1. **Locate the Ticket**: Read the ticket breakdown file and extract the target ticket. Confirm the ticket ID and capability area.
+1. **Locate the Ticket**: Resolve the change — the one named in the argument, else the single active change, else ask. Read `.gener8v/changes/<change-slug>/tickets/<capability-area-slug>.md` and extract the target ticket. Confirm the ticket ID, capability area and change. Read the change brief for its Status and Priority Cut; a delivery started from a `Draft` brief proceeds, and the record's `**Change:**` line says so (Audit raises a Warning, never a block).
 
-2. **Check Prerequisites**: Verify that all tickets listed in the Depends On field have delivery records in `.gener8v/delivery/`. If any are missing, warn the user that Prior Art references may point to files that do not exist.
+2. **Check Prerequisites**: Verify that all tickets listed in the Depends On field have delivery records in `.gener8v/changes/<change-slug>/delivery/`. If any are missing, warn the user that Prior Art references may point to files that do not exist.
 
 3. **Read Prior Art**: Follow every item in the ticket's Prior Art section. Read pipeline documents (specifications, constraints, technical design). Read predecessor delivery records and the actual code files they produced. Read system context if available.
 
 4. **Read Technical Design**: If a technical design exists for this capability area, read it for architecture decisions (AD-XXX) that affect this ticket's implementation.
 
-5. **Reconcile Ticket Assumptions Against Ground Truth**: Before planning, verify every assumption the ticket depends on against the actual repository. Read the schema/migrations to confirm referenced tables, columns, enums, and constraints exist; confirm that scripts and commands the ticket invokes are present; confirm every Prior Art / Required Reading document exists at the pinned version; confirm predecessor tickets produced the outputs declared in their Output sections. Build the Pre-Flight Reconciliation table. Where the code answers a question the ticket left open (e.g., a Decision Point the existing schema already settles), record it as resolved rather than escalating it. **Gate:** if any *blocking* assumption is false, set status to **Blocked**, write the reconciliation findings to the delivery record, report to the user, and stop — do not proceed to planning. Only a **Go** verdict continues.
+5. **Reconcile Ticket Assumptions Against Ground Truth**: Before planning, verify every assumption the ticket depends on against the actual repository. Read the schema/migrations to confirm referenced tables, columns, enums, and constraints exist; confirm that scripts and commands the ticket invokes are present; confirm every Prior Art / Required Reading document exists at the pinned version; confirm predecessor tickets produced the outputs declared in their Output sections; list findings the predecessor reviews deferred to this ticket or risks they accepted on files this ticket touches. Build the Pre-Flight Reconciliation table. Where the code answers a question the ticket left open (e.g., a Decision Point the existing schema already settles), record it as resolved rather than escalating it. **Write the delivery record now** — Ticket Reference and Pre-Flight Reconciliation, `Status: Reconciled` on a Go verdict. **Gate:** if any *blocking* assumption is false, set status to **Blocked**, report to the user, and stop — do not proceed to planning. Only a **Go** verdict continues.
 
 6. **Draft Implementation Plan**: Produce a plan that covers:
    - Every file to be created or modified (aligned with the ticket's Output section)
@@ -198,132 +257,45 @@ Only implement what this ticket specifies. Do not refactor adjacent code, add un
    - How each acceptance criterion will be satisfied
    - Any decisions or trade-offs identified during planning
    - Any constraints from the ticket that shape the implementation
+   - The repository the code lands in, from `context.md`'s `## Repositories` table (`.` when there is one); a ticket that touches two repositories is two tickets unless the change is atomic, in which case the plan names both and the record will list both commits
 
 7. **Present Plan to User**: Show the implementation plan and wait for explicit approval. The user may:
    - **Approve**: Proceed to implementation
    - **Modify**: Adjust the plan based on user feedback, then re-present
    - **Reject**: Do not proceed; discuss alternative approaches
 
-8. **Implement**: Write the actual code files as described in the approved plan. Follow the technical design's architecture decisions. Respect constraints referenced in the ticket. Produce the files declared in the ticket's Output section.
+   On approval, **append the plan verbatim to the delivery record**, record `**Plan approved by:** Engineer — <name>, YYYY-MM-DD`, add the `## Progress` checklist (one line per planned file), and set `Status: In Progress`. From this point the record — not the conversation — is the authority for what is being built.
+
+8. **Implement**: Write the actual code files as described in the approved plan. Follow the technical design's architecture decisions. Respect constraints referenced in the ticket (PRD-level and area-level). Produce the files declared in the ticket's Output section — including the test files the ticket lists. Tick each file in `## Progress` as it lands.
 
 9. **Add `@spec` Annotations**: For each function, class, method, or handler that implements a requirement from the ticket's Requirements Covered list, add an `@spec` annotation comment on the line immediately above the declaration. List all requirement IDs that the code location satisfies. If a requirement is implemented across multiple locations, annotate each one.
 
-10. **Verify Acceptance Criteria**: Walk through each acceptance criterion from the ticket and verify the delivered code satisfies it. For each criterion, note the specific evidence (file, function, behavior) that demonstrates satisfaction.
+10. **Run Verification**: Execute the named repository's checks — tests, type-check, lint, build — using the Verify commands from its row in `context.md`'s `## Repositories` table or the repository's own scripts (`package.json` scripts, `Makefile`, `pyproject.toml`, CI configuration). Run every NFR check the ticket carries that is executable (a benchmark against a latency target, a log-format test, an accessibility lint) using the method the specification names. Record every command with its exit code in `## Verification Run`. A failing check is fixed or the delivery is `Partial`; it is never omitted. Set `**Verification:**` accordingly.
 
-11. **Record Decisions**: Document any implementation decisions made during coding as DEL-XXX entries with context, decision, rationale, and ticket impact.
+11. **Verify Acceptance Criteria**: Walk through each acceptance criterion from the ticket, including the verification method listed for each NFR it carries. Tick it only when an executed check from the Verification Run proves it, and cite that check. A criterion the code implements but no executed check covers is recorded as Unverified; a non-executable NFR is Unverified with what would verify it.
 
-12. **Record Deviations**: Compare the delivered implementation against the approved plan. Document anything that changed and why. If the Output files differ from what the ticket declared, note the impact on downstream tickets.
+12. **Record Decisions**: Document any implementation decisions made during coding as DEL-XXX entries with context, decision, rationale, and ticket impact.
 
-13. **Write Delivery Record**: Save the delivery record to `.gener8v/delivery/[capability-area-slug]-[ticket-id]-delivery.md`.
+13. **Record Deviations**: Compare the delivered implementation against the approved plan. Document anything that changed and why. If the Output files differ from what the ticket declared, note the impact on downstream tickets.
+
+14. **Finalize the Delivery Record**: Fill Delivery Summary, Acceptance Criteria Verification, Decisions, Deviations and `@spec` Annotations; set `Status: Delivered` (or `Partial`). Then append one row per annotated requirement to the living specification's `## @spec Coverage` table (create the section if it is absent), with root-relative code locations, so the specification shows where each requirement lives in code.
+
+15. **Commit Together**: Commit in the repository named in the plan — the delivered code and the delivery record in the same commit (a branch per ticket is the recommended boundary; the record's file name is the natural commit subject). An atomic ticket spanning two repositories commits in each and the record lists both commits. Do not push or open a pull request unless the user asks. The three reviews are the pipeline's review of the change; a repository's own PR review, if any, sits on top of them.
 
 ## Example
 
-### Input
+A full delivery of `support-search/search-and-retrieval/TICKET-001` (query input, SR-REQ-001..003): the ticket as read from the breakdown, the plan presented for approval with its repository and approval line, and the finished record — reconciliation, verification run, criteria verification, a DEL decision and `@spec` annotations.
 
-Delivering TICKET-001 from the Search & Retrieval ticket breakdown: "Implement query input interface"
-
-The ticket specifies:
-- **Requirements Covered:** SR-REQ-001 (Accept natural language questions as input)
-- **Prior Art:** Read `.gener8v/specifications/search-and-retrieval.md`, read `.gener8v/dependencies/dependency-map.md`
-- **Acceptance Criteria:** Accepts free-text input of 500+ characters, passes query to search pipeline unmodified, provides in-progress feedback, rejects empty/whitespace queries
-- **Output:** `src/search/query-input.{ext}` — query input module
-- **Constraints:** None identified
-- **Depends On:** None
-
-### Output
-
-#### Phase 1 — Implementation Plan (presented to user)
-
-> **Plan for TICKET-001: Implement query input interface**
->
-> **Files to create:**
-> - `src/search/query_input.py` — Query input module with `process_query()` function
->
-> **Approach:**
-> - Define a `process_query(text: str) -> str` function that validates input and returns the cleaned query
-> - Validate: reject empty strings, whitespace-only strings, and strings exceeding 10,000 characters
-> - Return the query text unmodified (no normalization, no trimming beyond whitespace rejection)
-> - Raise `ValueError` with descriptive messages for invalid input
->
-> **Acceptance Criteria Mapping:**
-> - "Accepts free-text input of 500+ characters" → No upper limit below 10,000; any string up to that length is accepted
-> - "Passes query to search pipeline unmodified" → `process_query` returns the input string as-is after validation
-> - "Provides in-progress feedback" → Returns a status indicator alongside the query; upstream caller uses this for UI feedback
-> - "Rejects empty/whitespace queries" → `ValueError` raised with clear message
-
-#### Phase 2 — Delivery Record
-
-````markdown
-# TICKET-001: Implement query input interface — Delivery Record
-
-## Ticket Reference
-
-**Ticket:** TICKET-001 from search-and-retrieval
-**Specification:** `.gener8v/specifications/search-and-retrieval.md`
-**Requirements Covered:**
-- SR-REQ-001: Accept natural language questions as input
-
-## Implementation Plan
-
-[Plan as approved above — preserved verbatim]
-
-### Planned Files
-
-- `src/search/query_input.py`: Query input module with validation and passthrough
-
-### How Acceptance Criteria Will Be Met
-
-- Free-text input of 500+ characters: No restrictive upper limit; tested with 500+ char input
-- Passes query unmodified: Returns input string as-is after validation
-- In-progress feedback: Returns status indicator for upstream caller
-- Rejects empty/whitespace: Raises ValueError with descriptive message
-
-## Delivery Summary
-
-**Status:** Delivered
-**Files Produced:**
-- `src/search/query_input.py`: Query input module exposing `process_query(text: str) -> QueryResult` with input validation
-
-## Acceptance Criteria Verification
-
-- [x] The system accepts free-text input of at least 500 characters — `process_query` accepts any string up to 10,000 characters; tested with 1,000-character input
-- [x] The system passes the query text to the search pipeline without modification — `process_query` returns the original text in `QueryResult.query` without transformation
-- [x] The system provides feedback that a search is in progress — `QueryResult` includes a `status` field set to `"processing"`
-- [x] Empty or whitespace-only queries are rejected with a clear message — `ValueError("Query must not be empty or whitespace-only")` raised
-
-## Decisions Made
-
-### DEL-001: Use dataclass for query result instead of plain tuple
-
-**Context:** The ticket's Output section describes "a function/method that accepts a string query and returns it to the search pipeline." Need to decide what the return type looks like.
-**Decision:** Return a `QueryResult` dataclass with `query` and `status` fields instead of a plain string.
-**Rationale:** Downstream tickets (TICKET-003) need both the query text and metadata. A dataclass is self-documenting and extensible without breaking the interface.
-**Ticket Impact:** Output contract is slightly richer than specified — downstream Prior Art references will find a `QueryResult` type instead of a bare string.
-
-## Deviations from Plan
-
-None — implementation followed the approved plan.
-
-## @spec Annotations
-
-| Requirement | Code Location | Annotation |
-|-------------|---------------|------------|
-| SR-REQ-001 | `src/search/query_input.py:process_query()` | `@spec SR-REQ-001` |
-
-All requirements annotated.
-
-## Notes
-
-- The 10,000 character upper limit is a safety bound, not a requirement. If downstream needs change, this can be adjusted without affecting the interface contract.
-- TICKET-003 should import `QueryResult` from this module for type consistency.
-````
+It is at `skills/delivery/references/example.md`.
+Read it before producing your first artifact of this kind.
 
 ---
 
 ## Integration with Other Skills
 
 **Upstream:**
-- **Ticket Breakdown Skill**: Provides the ticket that defines what to implement — summary, requirements, Prior Art, acceptance criteria, output, constraints, and dependencies
+- **Planning Skill**: Opens the change whose brief (`changes/<change-slug>/change.md`) scopes the ticket — its Priority Cut and approval status
+- **Ticket Breakdown Skill**: Provides the ticket that defines what to implement — summary, priority, value, requirements (REQ and NFR), Prior Art, acceptance criteria, output, constraints, and dependencies
 - **Technical Design Skill**: Provides architecture decisions (AD-XXX) that guide implementation choices
 - **Specification Skill**: Provides requirement detail referenced in Prior Art
 - **Constraints Skill**: Provides constraints referenced in the ticket
@@ -333,14 +305,15 @@ All requirements annotated.
 - **Code Review Skill**: Reviews the delivered code against pipeline artifacts (acceptance criteria, requirements, constraints, architecture decisions)
 - **Quality Review Skill**: Reviews the delivered code for engineering quality
 - **Security Review Skill**: Reviews the delivered code for security vulnerabilities
-- **Delivery Skill** (subsequent runs): Later tickets reference this delivery's output in their Prior Art
+- **Delivery Skill** (subsequent runs): Later tickets reference this delivery's output in their Prior Art and read this ticket's reviews for carried findings
+- **Orchestrate / hooks**: read `Status`, `Verification` and `Reviews Deferred` from the record; a ticket is `done` only when Delivered, verified, and approved-or-deferred by every review
 
 ## Revisions
 
-- A delivery record is not revised after creation — it captures a point-in-time implementation
+- A delivery record is written progressively during the delivery (Reconciled → In Progress → Delivered) and is append-only afterwards: reviews add `## Post-Review Amendments` entries; nothing above that section is rewritten
 - If the ticket's requirements change after delivery, create a new ticket for the changes rather than modifying the delivery record
-- If a code review or quality review identifies issues, the fixes are a new delivery action (either amending the code with a note in the delivery record, or creating a follow-up ticket)
-- Delivery records in `.gener8v/delivery/` are permanent artifacts for traceability
+- If a review identifies issues, the fixes are applied in that review's resolution phase and recorded under `## Post-Review Amendments` (with re-verification), or a follow-up ticket is created
+- Delivery records in `.gener8v/changes/<change-slug>/delivery/` are permanent artifacts for traceability
 
 ## Notes
 
@@ -349,5 +322,7 @@ All requirements annotated.
 - One delivery per ticket — do not batch multiple tickets into a single delivery
 - If a ticket is sized Large, consider whether it should have been split during Ticket Breakdown rather than delivering a monolithic implementation
 - The `{ext}` placeholder in ticket Output sections should be resolved during implementation planning based on the system context and technology stack
-- When system context (`.gener8v/context.md`) is available, use it to inform language, framework, and convention choices
-- Delivery status values: **Delivered** (all acceptance criteria met), **Partial** (some criteria met, others blocked), **Blocked** (cannot proceed — including a failed Pre-Flight Reconciliation: a missing table/column/script or an absent pinned document means the ticket is blocked before planning, with the reconciliation findings naming what must exist first)
+- When system context (`.gener8v/context.md`) is available, use it to inform language, framework, and convention choices; its `## Repositories` table is where the plan's repository and the Verification Run's commands come from — in a workspace of several repositories every path in the record stays root-relative (`api/src/search/query.ts`)
+- Delivery status values: **Reconciled** (pre-flight Go, plan not yet approved), **In Progress** (plan approved, code being written), **Delivered** (all acceptance criteria verified), **Partial** (some criteria met, others blocked), **Blocked** (cannot proceed — including a failed Pre-Flight Reconciliation: a missing table/column/script or an absent pinned document means the ticket is blocked before planning, with the reconciliation findings naming what must exist first)
+- A project whose `tickets/`, `delivery/` and `reviews/*-review.md` still sit at the top level of `.gener8v/` is the legacy pseudo-change `initial`; read from there if that is where the ticket is, but never write a new record to the legacy location — Orchestrate recommends the one-time migration
+- With the plugin installed, a `PreToolUse` hook reminds the model when source is edited while no delivery record is `In Progress`, and the `SessionStart` hook points a resumed or compacted session at the in-flight record

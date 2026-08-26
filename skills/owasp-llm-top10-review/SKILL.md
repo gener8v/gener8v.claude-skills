@@ -1,3 +1,8 @@
+---
+name: owasp-llm-top10-review
+description: "OWASP Top 10 for LLM Applications 2025 assessment of anything that calls a model: direct and indirect prompt injection, sensitive disclosure, output handling, excessive agency, system-prompt leakage, vector and embedding weaknesses, unbounded consumption. Use for chat, RAG, agentic or LLM-orchestration code, alongside the web OWASP review."
+argument-hint: "[system slug]"
+---
 # OWASP LLM Top 10 Review Skill
 
 ## Purpose
@@ -28,7 +33,7 @@ Run it **alongside** the OWASP Top 10 (web) Review — the web list covers the H
 - Telemetry/observation surfaces — what model I/O is exposed via API/UI
 - Cost/usage tracking and any budget/quota enforcement
 - Any agency surface — tool definitions, external writes, sends, exports
-- An existing security review register (to assign SEC-XXX IDs and avoid duplication)
+- Every existing security review report (`.gener8v/changes/*/reviews/*-security-review.md`, and legacy `.gener8v/reviews/*-security-review.md`) and the web OWASP assessment, referenced as `<change-slug>/<report-slug>/SEC-XXX` (e.g. `support-search/search-and-retrieval-ticket-002-security-review/SEC-002`) or `<system-slug>-owasp-top10-assessment/SEC-XXX`, to map onto rather than duplicate
 
 **Expects:** LLM-touching code to exist. If there is none, say so and stop — this skill does not apply.
 
@@ -39,7 +44,7 @@ Run it **alongside** the OWASP Top 10 (web) Review — the web list covers the H
 **Creates directory:** `.gener8v/reviews/` if absent
 **Naming:** `-owasp-llm-top10-assessment` suffix
 
-New findings are assigned the next SEC-XXX IDs and pushed back to the canonical security review register.
+New findings are numbered `SEC-001…` within this assessment and referenced from elsewhere as `<system-slug>-owasp-llm-top10-assessment/SEC-XXX`. Per-ticket security reviews are never edited by this skill.
 
 ## The Framework — OWASP Top 10 for LLM Applications 2025
 
@@ -116,17 +121,21 @@ Same rule as the other review skills: who, what access, what they achieve.
 
 > **LLM10 — Unbounded Consumption · Gaps.** Per-call `max_tokens` exists, but nothing caps total tokens/$ per audit, engagement, or tenant, and no run aborts on cost. Cost is tracked post-hoc, never enforced. With public exposure + no rate limit → denial-of-wallet. → **SEC-019 (Medium)**.
 >
-> **LLM01 — Prompt Injection · Gaps.** Naive `{{var}}` substitution of tenant input (SEC-008, info) *and* of Exa-retrieved page content (SEC-020, Medium — an attacker who ranks a page for the target entity injects instructions into the model's context). Structured-output constrains the blast radius but does not remove it.
+> **LLM01 — Prompt Injection · Gaps.** Naive `{{var}}` substitution of tenant input (SEC-008, info) *and* of web-search-retrieved page content (SEC-020, Medium — an attacker who ranks a page for the target entity injects instructions into the model's context). Structured-output constrains the blast radius but does not remove it.
 
 ## Integration with Other Skills
 
 **Parallel:** OWASP Top 10 (web) Review — run both for an LLM app; this covers the model surface, that the HTTP/infra surface.
-**Upstream:** Security Review (SEC-XXX register); Technical Design (model/agency architecture).
-**Downstream:** Audit; the report is a reference artifact.
+**Upstream:** Security Review (per-ticket SEC-XXX findings under `changes/<change-slug>/reviews/`); Technical Design (model/agency architecture).
+**Downstream:** Audit; Ticket Breakdown (findings that need code changes become tickets); Orchestrate (lists the assessment under `cross_cutting.assessments`).
+
+## Revisions
+
+- Re-assess on architectural change — adding RAG/vectors re-opens LLM08 and LLM02; adding tools/agents re-rates LLM05/06; going multi-tenant re-opens LLM02 cross-tenant — and when the OWASP GenAI list is revised.
+- Re-running replaces `[slug]-owasp-llm-top10-assessment.md`; carry forward open findings with their status.
 
 ## Notes
 
 - Framework version: OWASP Top 10 for LLM Applications **2025**. The list evolves quickly (the 2025 edition added Vector & Embedding Weaknesses and System Prompt Leakage and reordered others); confirm the current edition before assessing.
-- Re-assess on architectural change — adding RAG/vectors re-opens LLM08 and LLM02; adding tools/agents re-rates LLM05/06; going multi-tenant re-opens LLM02 cross-tenant.
 - The OWASP GenAI Security Project also publishes companion guidance (agentic threats, red-teaming); pull from it for agentic systems.
 - Pairs naturally with a threat model for the orchestration/agency layer.

@@ -1,4 +1,15 @@
+---
+name: security-review
+description: "OWASP-informed, code-level security review of delivered code: injection, authentication and authorization, data exposure, configuration, dependencies, cryptography and logging, with attack scenarios for Medium+ findings and compliance constraints (CC-XXX) treated as Critical. Use after a delivery, especially for input handling, auth, sensitive data or external integrations."
+argument-hint: "<capability area> <TICKET-XXX> [in <change-slug>] | <files>"
+---
 # Security Review Skill
+
+**Invoked with:** `$ARGUMENTS`
+
+If that is empty, ask the user which delivered ticket (or which files) to review before doing anything else. Never guess the target.
+
+A ticket belongs to a change. When exactly one change is active (`ready` or `in_delivery` in `.gener8v/pipeline-state.yaml`), default to it; when several are active and the argument does not name one (`… in <change-slug>`), ask which change before reading anything.
 
 ## Purpose
 
@@ -18,11 +29,12 @@ Use this skill when:
 
 **Source:** Delivered code files, plus security-relevant pipeline artifacts
 **Read from:**
-- Delivery record: `.gener8v/delivery/[capability-area-slug]-[ticket-id]-delivery.md` (for the file list)
+- Delivery record: `.gener8v/changes/<change-slug>/delivery/<area-slug>-ticket-NNN-delivery.md` (for the file list)
 - Actual code files listed in the delivery record's "Files Produced" section
-- Constraints: `.gener8v/constraints/[capability-area-slug].md` (if available — for compliance constraints CC-XXX)
-- Technical Design: `.gener8v/technical-design/[capability-area-slug].md` or `.gener8v/technical-design/system-design.md` (if available — for auth/authz design decisions)
-- System Context: `.gener8v/context.md` (if available — for deployment environment and infrastructure)
+- Constraints: `.gener8v/constraints/prd.md` and `.gener8v/constraints/<area-slug>.md` (whichever exist — compliance constraints CC-XXX at either level apply)
+- Conventions: `.gener8v/CONVENTIONS.md`
+- Technical Design: `.gener8v/technical-design/<area-slug>.md` or `.gener8v/technical-design/system-design.md` (if available — for auth/authz design decisions)
+- System Context: `.gener8v/context.md` (if available — for deployment environment and infrastructure; its `## Repositories` table says which repository each root-relative path lives in when the root is a workspace)
 
 **Expects:** Code files to exist. Does NOT require all pipeline artifacts — the skill adapts its coverage based on what is available.
 
@@ -35,11 +47,11 @@ Use this skill when:
 ## Output
 
 **Produces:** A security review report with findings and interactive resolutions
-**Write to:** `.gener8v/reviews/[capability-area-slug]-[ticket-id]-security-review.md`
-**Creates directory:** `.gener8v/reviews/` if it does not exist
-**Naming convention:** Matches the delivery record naming with `-security-review` suffix
+**Write to:** `.gener8v/changes/<change-slug>/reviews/<area-slug>-ticket-NNN-security-review.md`
+**Creates directory:** `.gener8v/changes/<change-slug>/reviews/` if it does not exist
+**Naming convention:** Matches the delivery record naming with `-security-review` suffix, inside the same change's directory. The top-level `.gener8v/reviews/` holds system-level assessments only — never write a ticket review there.
 
-After interactive resolution, the skill may update delivered code files if the user approves remediations. The review report captures all findings, their resolutions, and any accepted risks.
+The report is written as soon as findings are drafted (all `Open`) and updated finding by finding during resolution. Approved remediations are applied in the resolution phase, re-verified, and recorded in the delivery record's `## Post-Review Amendments`. Findings are referenced from other documents as `<change-slug>/<report-slug>/SEC-XXX` — e.g. `support-search/search-and-retrieval-ticket-002-security-review/SEC-001` (numbering restarts per report; see `CONVENTIONS.md` §4).
 
 ## Output Format
 
@@ -53,8 +65,8 @@ Produce a markdown document with the following structure:
 [2-3 sentences: what was reviewed, overall security posture, finding count by severity.]
 
 **Files Reviewed:**
-- [file path]
-- [file path]
+- [root-relative file path]
+- [root-relative file path]
 
 **Findings:** [Total count]
 **Critical:** [Count] | **High:** [Count] | **Medium:** [Count] | **Low:** [Count] | **Informational:** [Count]
@@ -91,15 +103,16 @@ security-relevant defaults, CORS settings, security headers.]
 
 **Severity:** [Critical / High / Medium / Low / Informational]
 **Category:** [Injection / Authentication / Authorization / Data Exposure / Misconfiguration / Dependency / Input Validation / Cryptography / Logging / Session Management]
-**OWASP Reference:** [OWASP Top 10 category, e.g., A03:2021 Injection — or "N/A" if not directly mapped]
-**Location:** [file:line or function]
+**OWASP Reference:** [OWASP Top 10:2025 category, e.g. A05:2025 Injection — or "N/A" if not directly mapped]
+**Location:** [root-relative path:line or function — `api/src/search/query.ts:42`, never relative to a repository inside a workspace]
 **Description:** [What the vulnerability or concern is]
 **Attack Scenario:** [How this could be exploited — required for Medium+ severity]
 **Impact:** [What happens if exploited — data loss, unauthorized access, etc.]
 **Recommendation:** [Specific remediation with code example if helpful]
 **Compliance Impact:** [CC-XXX constraint IDs affected, if any, or "None"]
-**Status:** [Open / Resolved / Accepted Risk / Deferred]
-**Resolution:** [What was done, if resolved — filled in during interactive session]
+**Status:** [Open / Resolved / Accepted Risk / Deferred → TICKET-NNN or reason / Dismissed]
+**Risk accepted by:** [Security — <name>, YYYY-MM-DD — required when Status is Accepted Risk; omit otherwise]
+**Resolution:** [What was done, if resolved — filled in during resolution; for an accepted risk, the rationale and compensating controls]
 
 ---
 
@@ -114,8 +127,8 @@ security-relevant defaults, CORS settings, security headers.]
 
 ## Verdict
 
-**Result:** [Approved / Approved with Accepted Risk / Remediation Required]
-**Unresolved Critical/High:** [Count — must be 0 for Approved verdict]
+**Result:** [Approved / Approved with Notes / Changes Required]
+**Unresolved Critical/High:** [Count — must be 0 for an Approved variant]
 **Accepted Risks:** [Count, with brief summary of what was accepted]
 **Notes:** [Any conditions on the approval or follow-up actions]
 ```
@@ -141,7 +154,7 @@ Every Medium-severity-or-higher finding must include a plausible attack scenario
 Security is layered. A missing validation at one layer is less severe if another layer catches it. Assess findings in the context of the full stack, not in isolation. A SQL injection vector behind an authentication wall and input sanitization middleware is lower severity than one in an unauthenticated public endpoint.
 
 ### Accepted Risk Is a Valid Outcome
-Not every security finding must be fixed. Some are accepted risks: the likelihood is low, the mitigation cost is high, or compensating controls exist. The review records risk acceptance decisions explicitly with rationale. Critical findings require strong justification for acceptance — document why the risk is tolerable and what compensating controls exist.
+Not every security finding must be fixed. Some are accepted risks: the likelihood is low, the mitigation cost is high, or compensating controls exist. The review records risk acceptance decisions explicitly with rationale. Critical findings require strong justification for acceptance — document why the risk is tolerable and what compensating controls exist. Acceptance is the Security role's decision (`CONVENTIONS.md` §7): every accepted-risk finding carries `**Risk accepted by:** Security — <name>, YYYY-MM-DD` next to its rationale, even when one person holds every role.
 
 ### Compliance Constraints Are Non-Negotiable
 If the constraints analysis identifies compliance requirements (CC-XXX), violations of those constraints are automatically elevated to Critical severity regardless of exploitability. Compliance is not risk-based — it is requirement-based. A CC-XXX violation means the system does not meet its stated compliance obligations.
@@ -151,6 +164,9 @@ Hardcoded credentials, API keys, tokens, private keys, or connection strings in 
 
 ### Dependencies Are Attack Surface
 Third-party dependencies with known CVEs are findings. The review should check for outdated dependencies with known vulnerabilities where tooling makes this feasible (e.g., `npm audit`, `pip-audit`, `cargo audit`). The severity matches the CVE severity.
+
+### Two Phases, Two Runtimes
+**Findings** (steps 1–12) can run in a fresh context — the shipped `security-reviewer` agent, in parallel with the other two reviewers — because a reviewer who did not build the code has no reason to trust the builder's account of it. The findings phase writes the report with every finding `Status: Open` and a provisional verdict, and changes nothing else. **Resolution** (steps 13–15) runs in the main session with the user, one review at a time so three reviewers never edit the same file concurrently. Every approved change is re-verified and appended to the delivery record's `## Post-Review Amendments`; the report is updated per finding as it is resolved, and the final verdict is written last.
 
 ### Log Sensitive Data Never
 Logging that includes PII, credentials, session tokens, full request/response bodies with sensitive fields, or stack traces with internal paths in production is a finding. Good logging is essential for security monitoring — but logging sensitive data creates a new exposure vector.
@@ -204,110 +220,32 @@ Logging that includes PII, credentials, session tokens, full request/response bo
 
 11. **Cross-Reference Compliance**: For each CC-XXX constraint from the constraints analysis, verify the code meets the requirement. Flag violations at Critical severity.
 
-12. **Draft Findings**: Create findings with severity, OWASP reference, category, attack scenario (for Medium+), and specific remediation guidance.
+12. **Draft Findings and Write the Report**: Create findings with severity, OWASP reference, category, attack scenario (for Medium+), and specific remediation guidance. Write the full report to `.gener8v/changes/<change-slug>/reviews/` now, every finding `Open`, verdict provisional. *(End of the findings phase — when run as the `security-reviewer` agent, stop here and return the report path, verdict and counts.)*
 
-13. **Present to User**: Share findings starting with Critical, then High, then Medium, then Low, then Informational. For Critical and High findings, emphasize the attack scenario and impact. Work through interactive resolution — the user may fix, defer, or accept risk.
+13. **Present to User**: Share findings starting with Critical, then High, then Medium, then Low, then Informational. For Critical and High findings, emphasize the attack scenario and impact. Work through interactive resolution — the user may fix, defer, or accept risk — updating each finding in the report as it is decided. A finding deferred to a named ticket (`Deferred → TICKET-NNN`) also gets a Known Hazard appended to that ticket in its breakdown file, so the implementer sees it (`CONVENTIONS.md` §2). When a risk is accepted, write the `**Risk accepted by:** Security — <name>, YYYY-MM-DD` line and the rationale on the finding at that moment, and mark the Resolution Log row `Risk Accepted: Yes`.
 
-14. **Apply Approved Remediations**: Update code files for findings the user approves.
+14. **Apply Approved Remediations**: Update code files for findings the user approves, re-run the delivery record's Verification Run, and append each change to the delivery record's `## Post-Review Amendments`.
 
-15. **Write Report**: Save to `.gener8v/reviews/`.
+15. **Write the Verdict**: Set the final `**Result:**` and `**Accepted Risks:**` last.
 
 ## Example
 
-### Input
-
-Reviewing the delivery of TICKET-002 from Search & Retrieval: "Configure search index for semantic matching"
-
-Delivered code at `src/search/index.py` and `src/search/index_client.py`.
-
-### Output (abbreviated)
-
-````markdown
-# TICKET-002: Configure search index for semantic matching — Security Review
-
-## Summary
-
-Reviewed two files delivered for TICKET-002. The code handles search index configuration and querying. One Medium finding related to the database connection string. One Informational finding regarding query logging. Overall security posture is adequate for the current scope.
-
-**Files Reviewed:**
-- `src/search/index.py`
-- `src/search/index_client.py`
-
-**Findings:** 2
-**Critical:** 0 | **High:** 0 | **Medium:** 1 | **Low:** 0 | **Informational:** 1
-
-## Security Assessment
-
-### Input Validation
-
-**Status:** Adequate
-**Notes:** Query text passed to the search function is parameterized in the database query — no SQL injection vector. Vector embedding is generated via API call with the query string; the API client handles encoding.
-
-### Authentication & Authorization
-
-**Status:** Not Applicable
-**Notes:** This module does not handle user authentication or authorization. Access control is expected at a higher layer.
-
-### Data Protection
-
-**Status:** Gaps Found
-**Notes:** The database connection string is constructed from environment variables, but the fallback default includes a placeholder password (see SEC-001).
-
-### Configuration Security
-
-**Status:** Gaps Found
-**Notes:** Fallback connection string in code (see SEC-001).
-
-## Findings
-
-### SEC-001: Database connection string with fallback default
-
-**Severity:** Medium
-**Category:** Misconfiguration
-**OWASP Reference:** A05:2021 Security Misconfiguration
-**Location:** `src/search/index.py:12`
-**Description:** The database connection string is read from `DATABASE_URL` environment variable with a fallback default of `postgresql://search:search_dev@localhost:5432/search_db`. While the default points to localhost, committing default credentials normalizes the pattern of credentials in source code.
-**Attack Scenario:** A developer or CI system runs the code without setting the environment variable. The code connects with the default credentials. If the default database exists and is accessible, the code operates with unintended credentials. In a deployment misconfiguration, the default could leak into production.
-**Impact:** Unauthorized database access in misconfigured environments. Credential exposure in source code.
-**Recommendation:** Remove the fallback default. Raise an error if `DATABASE_URL` is not set. Fail explicitly rather than falling back to hardcoded credentials.
-**Compliance Impact:** None
-**Status:** Open
-
----
-
-### SEC-002: Search queries logged at DEBUG level
-
-**Severity:** Informational
-**Category:** Logging
-**OWASP Reference:** N/A
-**Location:** `src/search/index_client.py:28`
-**Description:** User search queries are logged at DEBUG level. Search queries may contain sensitive information depending on the domain (e.g., employee names, case numbers, internal project details).
-**Attack Scenario:** N/A (Informational)
-**Impact:** Potential exposure of sensitive query content in log files if DEBUG logging is enabled in production.
-**Recommendation:** Ensure DEBUG logging is disabled in production. Consider whether search queries should be logged at all, or logged with redaction.
-**Compliance Impact:** None
-**Status:** Open
-
-## Verdict
-
-**Result:** Approved with Accepted Risk
-**Unresolved Critical/High:** 0
-**Accepted Risks:** 0
-**Notes:** SEC-001 should be addressed before production deployment. SEC-002 is informational and depends on logging configuration in production.
-````
+A worked example — the findings-phase report for Search & Retrieval TICKET-002 (semantic index) in change `support-search`, with one Medium and one Informational finding, followed by the resolution excerpt that records an accepted risk — is in `references/example.md`. Read it before producing your first security review report.
 
 ---
 
 ## Integration with Other Skills
 
 **Upstream:**
-- **Delivery Skill**: Provides the delivery record (file list) and the delivered code to review
+- **Delivery Skill**: Provides the delivery record (`changes/<change-slug>/delivery/…`, with the file list) and the delivered code to review
 - **Constraints Skill**: Provides compliance constraints (CC-XXX) for mandatory security requirements
 - **Technical Design Skill**: Provides security-related architecture decisions (auth patterns, data protection approach)
 
 **Downstream:**
 - **Audit Skill**: Can include security review findings and risk acceptances in cross-stage assessments
-- Security review reports are reference documents — no other skill consumes them as direct input
+- **OWASP Top 10 / OWASP LLM Top 10 / Architecture Review**: read every `changes/*/reviews/*-security-review.md` (and legacy `reviews/*-security-review.md`) and map its findings (qualified as `<change-slug>/<report-slug>/SEC-XXX`) onto their taxonomies
+- **Delivery Skill** (later tickets): reads this report from `changes/<change-slug>/reviews/` for deferred findings and accepted risks on files it will touch
+- **Orchestrate**: reads the `**Result:**` line; `Changes Required` holds the ticket at `changes_required`
 
 **Parallel:**
 - **Code Review Skill**: Reviews the same code for pipeline traceability — different concern, can run in parallel
@@ -323,9 +261,10 @@ Reviewed two files delivered for TICKET-002. The code handles search index confi
 ## Notes
 
 - This skill reviews code, not architecture — for design-level security analysis (threat modeling, trust boundaries), use the Constraints skill with a security focus or create a dedicated threat model
-- Run this skill after Delivery, in parallel with Code Review and Quality Review
-- The OWASP Top 10 is the primary reference framework, but findings are not limited to it
-- Risk acceptance is a first-class outcome — the report explicitly records what risks were accepted and why
+- The findings phase runs after Delivery, in parallel with Code Review and Quality Review (as the reviewer agents); resolution phases run one at a time
+- The OWASP Top 10:2025 is the primary reference framework (the same edition the OWASP Top 10 Review skill assesses against), but findings are not limited to it
+- Verdict vocabulary is shared by all three reviews: Approved / Approved with Notes / Changes Required; accepted risks are counted separately
+- Risk acceptance is a first-class outcome — the report explicitly records what risks were accepted, why, and who accepted them (`**Risk accepted by:** Security — …`)
 - For dependency vulnerability checks, note which tool was used and when — results are time-sensitive
 - If no security-relevant code is found (pure data transformation, formatting, etc.), the review can be brief with an "Approved" verdict and a note explaining the limited attack surface
 - This skill can be used without a delivery record by pointing directly at code files — it degrades gracefully
