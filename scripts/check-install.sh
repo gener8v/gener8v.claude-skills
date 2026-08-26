@@ -1,15 +1,33 @@
 #!/usr/bin/env bash
-# Report drift between this repository's skills/ and a copied install in ~/.claude/skills/.
-# The copy route (README "Skills only") has no update mechanism; this makes drift visible.
+# Report how the gener8v skills are installed on this machine and whether a copied install drifts.
+#
+#   plugin present  -> lists any copies still lingering in ~/.claude/skills/ (they shadow the plugin's
+#                      skills as /<skill> next to /gener8v:<skill> and never update)
+#   no plugin       -> diffs skills/ in this repo against a copied ~/.claude/skills/ install
 #
 # Usage: scripts/check-install.sh [install-dir]   (default: ~/.claude/skills)
-# Exit 0 when identical, 1 when anything differs, is missing, or is extra.
+# Exit 0 when nothing lingers/differs, 1 otherwise.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INSTALL="${1:-$HOME/.claude/skills}"
+CACHE="$HOME/.claude/plugins/cache/gener8v-claude-skills/gener8v"
 rc=0
-[ -d "$INSTALL" ] || { echo "no install directory at $INSTALL"; exit 1; }
 
+if [ -d "$CACHE" ] && ls "$CACHE" >/dev/null 2>&1 && [ -n "$(ls "$CACHE" 2>/dev/null)" ]; then
+  ver="$(ls "$CACHE" | sort -V | tail -1)"
+  echo "plugin: gener8v $ver installed ($CACHE/$ver)"
+  for d in "$HERE"/skills/*/; do
+    name="$(basename "$d")"
+    if [ -d "$INSTALL/$name" ]; then
+      echo "LINGERS  $INSTALL/$name  (copied install shadows the plugin; move it aside)"; rc=1
+    fi
+  done
+  [ $rc -eq 0 ] && echo "OK — no copied gener8v skills alongside the plugin" || echo "Move the listed directories out of $INSTALL (see README: Upgrading from a copied install)."
+  exit $rc
+fi
+
+[ -d "$INSTALL" ] || { echo "no plugin install and no copied install at $INSTALL"; exit 1; }
+echo "plugin: not installed — checking the copied install at $INSTALL"
 for d in "$HERE"/skills/*/; do
   name="$(basename "$d")"
   if [ ! -d "$INSTALL/$name" ]; then
