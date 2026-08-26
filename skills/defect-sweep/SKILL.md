@@ -1,4 +1,15 @@
+---
+name: defect-sweep
+description: "Sweep an existing subsystem's perimeter for defect classes nobody is looking for — inherited defaults, sibling writers, incomplete gates, fail-open error paths, silent truncation, stale assertions, identity confusion, time-based inference, unasked authorization — with proof per finding, at .gener8v/sweeps/. Use after a burst of changes, before a launch, or when a found defect may have siblings. Runs as a fresh-context pass."
+argument-hint: "<subsystem, directory or entry point>"
+context: fork
+agent: defect-sweeper
+---
 # Defect Sweep Skill
+
+**Invoked with:** `$ARGUMENTS`
+
+If that is empty, ask the user which subsystem to sweep and where its edges are before doing anything else. Never guess the target.
 
 ## Purpose
 
@@ -15,7 +26,10 @@ the same table, a control that claims coverage it does not have.
 
 Building and sweeping are different modes. A builder verifies the thing they made and is
 incurious about its neighbours — which is exactly the blind spot this skill exists to
-cover, and why it should be run by a fresh pass rather than folded into Delivery.
+cover, and why it runs as a fresh pass rather than folded into Delivery: this skill's
+frontmatter forks it into the `defect-sweeper` agent, so the sweep never inherits the
+builder's context. The agent writes the sweep and returns; the user reads it in the main
+session.
 
 ## When to Use
 
@@ -38,13 +52,17 @@ it to check pipeline documents — that is Audit.
 - Everything that calls the named code
 - Tests covering it
 - `CLAUDE.md` / `CONTRIBUTING.md` for repo-specific rules a sweep should enforce
+- `.gener8v/sweeps/<subsystem-slug>-sweep.md` from the previous sweep of the same subsystem, if any —
+  to say which earlier findings were fixed, which are still open, and which are new
 
 **Nothing from `.gener8v/` is required.** This skill works on repositories that have never
-run the pipeline, which is the common case for the code most worth sweeping.
+run the pipeline, which is the common case for the code most worth sweeping. It creates
+`.gener8v/sweeps/` if needed; that does not make the project "on the pipeline" (that is
+`.gener8v/prd.md`), and Setup/Brownfield still run normally afterwards.
 
 ## Output
 
-**Write to:** `.gener8v/sweeps/[subsystem-slug]-sweep.md` (or a path the user names)
+**Write to:** `.gener8v/sweeps/<subsystem-slug>-sweep.md` (or a path the user names)
 
 A findings document, ordered by consequence. Each finding states what breaks, in what
 circumstance, and carries the evidence that makes it checkable rather than plausible.
@@ -73,7 +91,7 @@ state is a note; one that needs a Friday afternoon is a finding.
 **Proof.** How to see it: a failing test, a query, a reproduction. If a fix is proposed,
 state what breaks when the fix is removed.
 
-**Class.** One of the classes below.
+**Class.** One of the classes in `references/defect-classes.md`.
 
 ### DS-002: ...
 
@@ -85,106 +103,30 @@ a reader cannot tell "checked and fine" from "never looked".
 ## Verdict
 
 What should be fixed now, what can wait, and what needs a decision rather than a fix.
+Findings to fix now become tickets (see Integration); name them here as `DS-XXX → ticket`,
+and name the change they go into.
+
+## Since the last sweep (if any)
+
+[Earlier findings fixed / still open / new this time.]
 ```
 
 ## Defect Classes
 
-These are the sweeps. Each is a question to ask of the subsystem, not a rule to check.
+Each class is a question to ask of the subsystem, not a rule to check. The full description of
+each — what it looks like, the question, and the smell that gives it away — is in
+`references/defect-classes.md` (relative to this skill's directory). **Read it before sweeping.**
 
-### Inherited defaults
-
-A callee applies a default the caller never chose. Query builders with a default `limit`,
-clients with a default timeout, parsers with a default encoding.
-
-*Ask:* for every function this code calls, what does it do when an argument is absent?
-
-*Smell:* the caller reads the callee's **type signature** and stops there. Optional
-parameters are where defaults hide, and a type signature does not show you the default.
-
-### Sibling writers
-
-One path into a resource is guarded and another is not. A DELETE handler that refuses
-under a condition, next to a POST that overwrites without asking.
-
-*Ask:* what else reads or writes this table, this file, this key?
-
-*Smell:* a guard whose comment explains a hazard. If the hazard is real, it applies to
-every writer — find them all.
-
-### Incomplete gates
-
-A control claims coverage it does not have. A kill switch on three of four entry points, a
-permission check on the routes somebody remembered.
-
-*Ask:* enumerate every entry point into the guarded capability, then check each one.
-
-*Smell:* a comment stating how many places call something. Count them.
-
-### Fail-open on the error path
-
-An unknown or errored state is treated as permissive. A gate that has not read its
-configuration yet, a role lookup that returns null on outage and null when disabled.
-
-*Ask:* for every guard, what happens when its input cannot be read?
-
-*Smell:* `??` or `||` supplying a default to a **security or safety** decision. Failing
-open is sometimes right, but it must be a decision with a reason attached, not a fallback.
-
-### Silent truncation
-
-A partial answer is presented as a complete one. Pagination limits, result caps, sampling,
-`top-N` — where the consumer is not told what was dropped.
-
-*Ask:* can this return fewer things than exist? Does the caller learn that it did?
-
-*Smell:* a bulk operation that reports successes without reporting a total.
-
-### Stale assertions
-
-A comment, docstring, or document asserts behaviour that is not true — or never was.
-
-*Ask:* for each comment describing what the system does, check it against the system.
-
-*Smell:* specific, confident claims — port numbers, counts, credential types, "X cannot
-read Y". Specificity reads as authority and is checked by nothing.
-
-### Identity confusion
-
-Two things keyed differently are assumed to travel together. Records keyed by a natural
-key while their subject is keyed by an id, so regenerating the subject rebinds the records.
-
-*Ask:* what is this row keyed by, and does that key survive the operations applied to its
-subject?
-
-*Smell:* a delete that leaves rows behind, or a create that finds rows already there.
-
-### Time-based inference
-
-Elapsed time is treated as evidence of intent. "Nobody claimed this in 48 hours, so it was
-abandoned" — true only if somebody was able to claim it the whole time.
-
-*Ask:* does this clock keep running during states where the expected actor could not act?
-
-*Smell:* a reaper, sweeper, or timeout that infers neglect from a duration.
-
-### Unasked authorization
-
-Data is returned without asking who is reading. Common where middleware is assumed to
-have resolved identity but only resolves *authentication*.
-
-*Ask:* for every route returning person-level data, what permission does it require, and
-does the middleware actually supply the thing it is assumed to?
-
-*Smell:* a route with no permission call, in a codebase where most routes have one.
-
-### Over-serving the client
-
-More data crosses the wire than is drawn. Server components passing whole objects to client
-components; APIs returning a full record because the type was convenient.
-
-*Ask:* what does the renderer actually read, and what is it handed?
-
-*Smell:* an object built for one audience passed to a narrower one.
+- **Inherited defaults** — for every function this code calls, what does it do when an argument is absent?
+- **Sibling writers** — what else reads or writes this table, this file, this key?
+- **Incomplete gates** — enumerate every entry point into the guarded capability; is each one checked?
+- **Fail-open on the error path** — for every guard, what happens when its input cannot be read?
+- **Silent truncation** — can this return fewer things than exist, and does the caller learn that it did?
+- **Stale assertions** — for each comment describing what the system does, is it true of the system?
+- **Identity confusion** — what is this row keyed by, and does that key survive the operations applied to its subject?
+- **Time-based inference** — does this clock keep running during states where the expected actor could not act?
+- **Unasked authorization** — for every route returning person-level data, what permission does it require, and does the middleware actually supply what it is assumed to?
+- **Over-serving the client** — what does the renderer actually read, and what is it handed?
 
 ## Principles
 
@@ -241,8 +183,8 @@ author.
    This step is the skill. The subsystem's own code is usually the part that has been read
    the most; the perimeter is the part nobody has opened.
 
-3. **Run each class.** Take the defect classes in turn. Most will find nothing — record
-   that they were run.
+3. **Run each class.** Take the defect classes in turn, as described in
+   `references/defect-classes.md`. Most will find nothing — record that they were run.
 
 4. **Check every assertion.** Grep the subsystem's comments for claims about behaviour and
    verify each against the code. Counts, names, and capabilities especially.
@@ -257,58 +199,38 @@ author.
 
 ## Example
 
-### Input
+A sweep of a subsystem's stop controls (pause, cancel, a recent delete) on a project that is not on
+the pipeline: two proven findings — a time-based inference that dead-letters paused work, and an
+incomplete gate found through a stale assertion — the classes swept clean, and a Verdict that
+opens a `fix-<subsystem-slug>` change for the tickets. It lives at `references/example.md`
+(relative to this skill's directory). Read it before producing your first artifact of this kind.
 
-> Sweep the generation stop controls in `Fail-Persist-Exceed` — pause, cancel, and the
-> material-set delete added this week.
+## Integration with Other Skills
 
-### Output (abbreviated)
+**Upstream:** none required. Reads the code, its tests, `CLAUDE.md`, and the previous sweep of the same
+subsystem.
 
-```markdown
-# Generation stop controls: Defect Sweep
+**Downstream:**
+- **Ticket Breakdown**: findings the Verdict says to fix now become tickets (cite `DS-XXX`) in
+  `changes/<change-slug>/tickets/<area-slug>.md` of the active change — the owning capability area's
+  breakdown, or a breakdown for the subsystem when the project has no capability areas. When several
+  changes are active, the user names one. A fix is then a normal Delivery with its three reviews.
+- **Planning**: when no change is active, open a new change `fix-<subsystem-slug>` via Planning first
+  (Why: the sweep; Outcome: the findings closed; Priority Cut from the Verdict), then break the findings
+  down under it.
+- **Orchestrate**: lists sweeps under `cross_cutting.sweeps` and recommends a sweep when three or more
+  deliveries have landed in one capability area since the last one, or before a launch.
+- **Audit**: checks that every finding names a circumstance and carries proof, and that the sweep says
+  where it stopped.
+- **Quality Review** is the home for smells that are not failures; a sweep finding that cannot state a
+  breaking circumstance is handed there, not dropped.
 
-## Scope
-Swept: `lib/scheduling/pause-gate.ts`, `lib/generation/pause-guard.ts`, the routes that
-start engine work, `reconcileOverdueQueuedJobs`. Not swept: the engine itself, the GPU
-lease.
+## Revisions
 
-## Findings
-
-### DS-001: A pause held over a weekend marks the paused queue as abandoned
-
-**What breaks.** Every job held by a pause longer than 48 hours is dead-lettered, and each
-owner is told their materials failed. The stop switch destroys the work it was thrown to
-protect.
-
-**Mechanism.** The reaper keeps running under a pause — correct, since settling a dead
-worker is not new work. It also runs `reconcileOverdueQueuedJobs`, which dead-letters
-queued jobs past `OVERDUE_MS` with `attempts = 0` and no set (`jobs.ts:418`). That is
-exactly the shape of a job that never started because generation was paused.
-
-**Circumstance.** Any pause longer than the overdue window. A Friday incident is enough.
-
-**Proof.** Seed a queued job due five days ago, hold the pause, run the reaper: status
-`failed`, error `abandoned: overdue in the queue with no worker completion`. With the
-clock measured from `greatest(run_after, resumed_at)` it stays `queued`; reverting that
-fails three assertions.
-
-**Class.** Time-based inference.
-
-### DS-002: The stop switch does not cover pull-aside
-
-**What breaks.** An administrator pausing during a GPU incident still has tutors starting
-generations.
-
-**Mechanism.** `pause-guard.ts:5` states three routes call it. Two do. Pull-aside submits
-a lesson sequence through the same builder and never asks.
-
-**Proof.** `grep -rl generationPausedResponse src/app/api/` returns two files.
-
-**Class.** Incomplete gates — found by checking a stale assertion.
-
-## Swept and clean
-Inherited defaults, sibling writers, silent truncation, over-serving the client.
-
-## Verdict
-DS-001 and DS-002 before the pause is used on anything live.
-```
+- A sweep is point-in-time. Re-run after a burst of changes to the same subsystem, before a launch that
+  exposes it, or when a defect found elsewhere may have siblings here.
+- Re-running writes a new sweep file (`<subsystem-slug>-sweep.md` is replaced; the previous verdict is
+  summarised in **Since the last sweep**) so a reader sees what was fixed and what is still open.
+- Periodic sweeps over the subsystems that carry the most consequence are a good use of a scheduled
+  routine (`/schedule`) or a cron-driven session; the plugin ships no schedule because the cadence is
+  the project's decision.

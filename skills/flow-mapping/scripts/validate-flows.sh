@@ -14,6 +14,7 @@
 set -uo pipefail
 
 MMDC=(npx --yes @mermaid-js/mermaid-cli@11)
+command -v npx >/dev/null 2>&1 || { echo "validate-flows.sh needs npx (Node). Install Node, then rerun." >&2; exit 2; }
 EDGE_RE='(\-\->|\.\->|==>|\.\-x|\.\-o|\-\-x|\-\-o|\-\-[^-]|===)'
 MAX_NODES="${MAX_NODES:-18}"      # above this a single diagram stops being readable — split it
 case "$MAX_NODES" in
@@ -50,7 +51,7 @@ extract() {  # $1=src $2=outdir -> writes NNN.mmd per diagram
 node_names() {  # $1=diagram file
   local d="$1"
   grep -oE '(^|[^A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*(\[|\(|\{)' "$d" \
-    | sed -E 's/.*[^A-Za-z0-9_]?([A-Za-z_][A-Za-z0-9_]*)(\[|\(|\{)/\1/'
+    | sed -E 's/^[^A-Za-z_]+//; s/(\[|\(|\{)$//'
   grep -E "$EDGE_RE" "$d" \
     | sed -E 's/"[^"]*"/ /g; s/\|[^|]*\|/ /g' \
     | sed -E 's/(\-\.\-[>xo]?|\-\-[>xo]|==+>|===+|\-\-|\-\.\-|\.\->)/ /g' \
@@ -92,7 +93,7 @@ lint() {  # $1=diagram file, $2=label
   # Every edge should say WHAT moves. Mermaid carries a label either as -->|payload| or as a quoted
   # string between the arrow halves: -- "payload" --> / -. "payload" .-> / -. "payload" .-x .
   # Accept every form; matching only one dialect reports labelled edges as unlabelled.
-  local LABEL_RE='\|[^|]+\||(\-\-|\-\.|==)[[:space:]]*"[^"]+"[[:space:]]*(\.)?(\-\->|\-\-x|\-\-o|\-\->|==>|\-x|\-o|\->)'
+  local LABEL_RE='\|[^|]+\||(\-\-|\-\.|==)[[:space:]]*"[^"]+"[[:space:]]*(\.)?(\-\->|\-\-x|\-\-o|==>|\-x|\-o|\->)|(\-\-|==)[[:space:]]+[^-=>|"][^>]*[[:space:]]+(\-\->|==>)'
   local edges labelled
   edges=$(wc -l < "$work/edges.txt" | tr -d ' ')
   labelled=$(grep -cE "$LABEL_RE" "$work/edges.txt" || true)
@@ -120,7 +121,7 @@ lint() {  # $1=diagram file, $2=label
   fi
   # Cadence lives inside the edge label, whichever delimiter the diagram uses — scan the edge lines,
   # not just pipe-delimited text.
-  grep -qiE '(nightly|daily|hourly|real[- ]?time|weekly|monthly|batch|on[- ]demand|manual|ad[- ]hoc|quarterly|annual)' \
+  grep -qiE '(nightly|daily|hourly|real[- ]?time|streaming|event[- ]driven|weekly|monthly|batch|on[- ]demand|on[- ]request|manual|ad[- ]hoc|quarterly|annual|every [0-9]+ ?(s|sec|min|h|hour|day)s?|per (request|call))' \
     "$work/edges.txt" \
     || warn "$label: no cadence on any edge — a flow without timing is not current-state"
 }

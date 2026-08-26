@@ -1,4 +1,13 @@
+---
+name: technical-design
+description: "Translate specifications, constraints and dependencies into architecture decisions (AD-XXX), component boundaries, data model and interface contracts under .gener8v/technical-design/. Use when technology or architecture choices must be settled before tickets are written; skip when the approach is obvious and uncontested."
+argument-hint: "[capability area | system]"
+---
 # Technical Design Skill
+
+**Invoked with:** `$ARGUMENTS`
+
+If that is empty, ask the user whether to design one capability area or the cross-cutting system design before doing anything else. Never guess the target.
 
 ## Purpose
 
@@ -23,11 +32,14 @@ Skip this skill when:
 **Source:** Specifications, Constraints analyses, Dependency Map, and optionally System Context
 **Read from:**
 - Specifications: `.gener8v/specifications/*.md`
-- Constraints: `.gener8v/constraints/*.md` (if available)
+- Constraints: `.gener8v/constraints/*.md` (if available — PRD-level and per-area)
 - Dependency Map: `.gener8v/dependencies/dependency-map.md` (if available)
-- System Context: `.gener8v/context.md` (if available)
+- System Context: `.gener8v/context.md` (if available — including its `## Repositories` table, which names every repository in the workspace and is the source of the root-relative paths this design cites)
+- Flow maps: `.gener8v/flows/*.md` (if Flow Mapping has run — the current-state baseline a target design moves from)
+- The repository itself, for the infrastructure and patterns the design assumes already exist
+- `.gener8v/CONVENTIONS.md`
 
-**Expects:** At minimum, one specification with numbered requirements. Richer design is possible when constraints, dependencies, and system context are available. Note which inputs were used in the Source Context section of the output.
+**Expects:** At minimum, one specification with numbered requirements — and its `## Non-Functional Requirements` (PREFIX-NFR-XXX), which set the measurable targets the infrastructure and risk sections must answer to. Richer design is possible when constraints, dependencies, and system context are available. Note which inputs were used in the Source Context section of the output.
 
 **If input is missing or malformed:**
 - If no specifications exist, stop and recommend running the Specification skill first
@@ -62,6 +74,8 @@ significant decisions made.]
 **Constraints Analysis:** [File path, or "Not yet performed"]
 **Dependency Map:** [File path, or "Not yet performed"]
 **System Context:** [File path, or "Not available"]
+**Status:** [Draft / Approved]
+**Approved by:** [Architect — name, YYYY-MM-DD — or "pending"]
 
 ## Architecture Decisions
 
@@ -83,10 +97,11 @@ significant decisions made.]
 ### [Component Name]
 
 **Responsibility:** [What this component does — one sentence]
+**Repository:** [Directory from `context.md`'s `## Repositories` table — required when the workspace has several repositories, omit for a single repository]
 **Interfaces:**
 - [Interface name]: [What it accepts and returns]
 **Dependencies:** [Other components or external systems this relies on]
-**Requirements Served:** [PREFIX-REQ-XXX IDs]
+**Requirements Served:** [PREFIX-REQ-XXX and PREFIX-NFR-XXX IDs]
 
 ## Data Model
 
@@ -110,15 +125,16 @@ significant decisions made.]
 
 ## Infrastructure Requirements
 
-- [Requirement]: [Why needed, which decisions or components drive this]
+- [Requirement]: [Why needed — which decisions or components drive this, and which PREFIX-NFR-XXX targets it serves]
 
 ## Technical Risks
 
 - **TR-001**: [Risk statement]
   - *Likelihood:* [High / Medium / Low]
-  - *Impact:* [What goes wrong if this risk materializes]
+  - *Impact:* [What goes wrong if this risk materializes — name the NFR that would be missed]
   - *Mitigation:* [How to reduce likelihood or impact]
   - *Related Constraints:* [Constraint IDs, if applicable]
+  - *Related NFRs:* [PREFIX-NFR-XXX IDs this risk threatens, or "—"]
 
 ## Open Technical Questions
 
@@ -153,143 +169,37 @@ Technical decisions must respect the constraints identified by the Constraints s
 
 ## Process
 
+0b. **Load the Existing Artifact**: If the output file already exists, read it first. Every existing ID and heading is kept; new items are allocated above the current maximum ID; anything no longer applicable is marked `**Status:** Withdrawn` in place rather than deleted. IDs are append-only (`CONVENTIONS.md` §4) — code and downstream documents reference them, and renumbering silently re-binds those references.
+
 1. **Gather Inputs**: Read the relevant specifications, constraints, dependency map, and system context. Note which documents are available and which are missing.
+
+1b. **Verify the Starting Point**: For every piece of infrastructure, library or pattern the design will build on because it "already exists" (a database extension, a queue, an auth middleware, a module layout), confirm it in the repository or `context.md` and cite the file. A design premised on infrastructure that is not there is a ticket-time surprise; make it an Open Technical Question now.
 
 2. **Identify Decisions Needed**: Scan requirements and constraints for questions that require architectural answers: What technology? What pattern? What boundary? What trade-off?
 
 3. **Make and Document Decisions**: For each decision point, evaluate options against requirements and constraints. Document the decision with full rationale and alternatives.
 
-4. **Design Components**: Identify the major building blocks. Define what each does, what it depends on, and how others interact with it.
+4. **Design Components**: Identify the major building blocks. Define what each does, what it depends on, and how others interact with it. When `context.md`'s `## Repositories` table lists several repositories, name the one each component lives in; every code path cited anywhere in the design is root-relative (`api/src/search/query.ts`), never relative to a single repository.
 
 5. **Model Data**: Identify data entities, their structure, relationships, and sources. Align with requirements about what data the system captures, stores, and displays.
 
 6. **Define Interfaces**: For each boundary between components (or between the system and external systems), define the contract: input, output, error handling.
 
-7. **Identify Infrastructure**: Determine what infrastructure the design requires beyond application code — databases, queues, caches, external services, deployment targets.
+7. **Identify Infrastructure**: Determine what infrastructure the design requires beyond application code — databases, queues, caches, external services, deployment targets. For each item, cite the NFR IDs it serves (the index that keeps latency under target, the log pipeline that makes a request traceable); an NFR no infrastructure item or component serves is a gap to name, not to leave implicit.
 
-8. **Assess Technical Risks**: Identify where the design has uncertainty, where decisions depend on unverified assumptions, or where implementation complexity is high.
+8. **Assess Technical Risks**: Identify where the design has uncertainty, where decisions depend on unverified assumptions, or where implementation complexity is high. State which NFR each risk threatens under *Related NFRs* — a risk that would miss a measurable target is the kind Ticket Breakdown most needs to see.
 
 9. **Review Against Constraints**: Walk through each constraint and verify the design respects it. Flag any tensions.
 
 10. **Flag Unknowns**: Technical questions that can't be answered without prototyping, vendor evaluation, or stakeholder input go to Open Technical Questions.
 
+11. **Write as Draft, Record Approval**: Write the document with `**Status:** Draft` and `**Approved by:** pending`. The Architect approves technical design (`CONVENTIONS.md` §7); when the user approves in conversation, update both lines — `**Status:** Approved`, `**Approved by:** Architect — <name>, YYYY-MM-DD`. Approval never blocks the next stage; Audit raises a Warning (never a block) when a stage was produced from an unapproved upstream artifact.
+
 ## Example
 
-### Input
-
-Designing the "Search & Retrieval" capability from the Support Documentation Search System, using:
-- Specification with requirements SR-REQ-001 through SR-REQ-010
-- Constraints analysis with TC-001 (semantic search needed), TC-002 (stable identifiers needed)
-- Dependency map showing dependency on Documentation Ingestion
-- System context indicating the team uses Python, runs on AWS, and has experience with PostgreSQL
-
-### Output
-
-````markdown
-# Search & Retrieval — Technical Design
-
-## Overview
-
-Search & Retrieval uses a vector similarity approach for semantic search, backed by PostgreSQL with pgvector. The design separates query processing, index management, and result ranking into distinct components with clear interfaces. The most significant decision is using pgvector over a dedicated vector database, trading peak performance for operational simplicity.
-
-## Source Context
-
-**Specifications Analyzed:** `.gener8v/specifications/search-and-retrieval.md`
-**Constraints Analysis:** `.gener8v/constraints/search-and-retrieval.md`
-**Dependency Map:** `.gener8v/dependencies/dependency-map.md`
-**System Context:** `.gener8v/context.md`
-
-## Architecture Decisions
-
-### AD-001: Use vector similarity search for semantic matching
-
-**Context:** SR-REQ-006 requires results even when query terminology differs from documentation. This rules out keyword-only search and requires some form of semantic understanding.
-**Decision:** Use vector embeddings for both documentation chunks and queries, with cosine similarity for matching.
-**Rationale:** Vector similarity handles terminology mismatch naturally without synonym dictionaries or manual mapping. Aligns with TC-001 from constraints analysis.
-**Alternatives Considered:**
-- Keyword search with synonym expansion — Fragile; requires manual maintenance of synonym lists
-- Full LLM-based reranking — Higher latency and cost per query; overkill for initial scope
-**Consequences:** Requires an embedding model for both indexing and query time. Index size grows with embedding dimensions. Quality depends on embedding model choice.
-**Requirements Affected:** SR-REQ-004, SR-REQ-005, SR-REQ-006
-
-### AD-002: Use PostgreSQL with pgvector extension
-
-**Context:** Need a vector store for embeddings. Team already operates PostgreSQL in production.
-**Decision:** Use pgvector extension in existing PostgreSQL infrastructure.
-**Rationale:** Avoids introducing a new database technology. Team has PostgreSQL expertise and operational tooling. pgvector supports approximate nearest-neighbor search sufficient for expected scale.
-**Alternatives Considered:**
-- Dedicated vector database (Pinecone, Weaviate) — Better performance at scale, but adds operational complexity and a new vendor dependency
-- Elasticsearch with vector search — Capable, but team lacks Elasticsearch experience
-**Consequences:** Performance may become a concern at very high document volumes. Migration path to a dedicated vector store exists if needed.
-**Requirements Affected:** SR-REQ-004, SR-REQ-005, SR-REQ-007
-
-## Component Design
-
-### Query Processor
-
-**Responsibility:** Accept natural language queries, validate input, generate query embeddings
-**Interfaces:**
-- `process_query(text: str) -> QueryEmbedding`: Validates input and returns embedding vector
-**Dependencies:** Embedding model service
-**Requirements Served:** SR-REQ-001, SR-REQ-002, SR-REQ-003
-
-### Search Index
-
-**Responsibility:** Store document embeddings and perform similarity searches
-**Interfaces:**
-- `search(embedding: vector, limit: int) -> list[RawResult]`: Returns nearest matches with scores
-**Dependencies:** PostgreSQL with pgvector
-**Requirements Served:** SR-REQ-004, SR-REQ-006, SR-REQ-007
-
-### Result Ranker
-
-**Responsibility:** Order raw results by relevance, attach source attribution, return bounded result set
-**Interfaces:**
-- `rank(results: list[RawResult]) -> list[RankedResult]`: Returns ordered, attributed results
-**Dependencies:** Query Processor (for query context), Search Index (for raw results)
-**Requirements Served:** SR-REQ-005, SR-REQ-008, SR-REQ-009, SR-REQ-010
-
-## Data Model
-
-### DocumentChunk
-
-**Purpose:** Stores a searchable segment of documentation with its embedding
-**Key Fields:**
-- `id`: Unique identifier
-- `content`: Text excerpt
-- `embedding`: Vector representation
-- `source_title`: Title of the source document
-- `source_ref`: Stable URI/path to the source location
-- `source_system`: Which documentation system this came from
-**Relationships:** Many chunks per source document
-**Source:** Created by Documentation Ingestion capability
-
-## Infrastructure Requirements
-
-- PostgreSQL instance with pgvector extension enabled
-- Embedding model access (API or self-hosted) for query-time embedding generation
-- Sufficient storage for embedding vectors (dimensionality × document count × 4 bytes)
-
-## Technical Risks
-
-- **TR-001**: pgvector query performance at scale is unproven for this team
-  - *Likelihood:* Low (expected document volume is modest)
-  - *Impact:* Search latency degrades, affecting user experience
-  - *Mitigation:* Benchmark with representative data volume early; define performance threshold
-  - *Related Constraints:* TC-001
-
-## Open Technical Questions
-
-- [ ] **TQ-001**: Which embedding model should be used? (Affects quality, latency, and cost)
-- [ ] **TQ-002**: What chunk size produces the best search results? (Requires experimentation)
-- [ ] **TQ-003**: Should the system support hybrid search (vector + keyword) for improved precision?
-
-## Assumptions
-
-- Assumption: pgvector is available or can be enabled on the existing PostgreSQL instance
-- Assumption: Query volume is low enough that embedding generation per query is acceptable latency
-- Assumption: A single embedding model is sufficient for all documentation sources
-````
+A complete Search & Retrieval design for the Support Documentation Search System: two architecture decisions (AD-001 vector similarity, AD-002 PostgreSQL + pgvector), four components, one data entity, an interface contract, infrastructure and risks that cite SR-NFR-001 and SR-NFR-002, and a Draft approval line.
+See `references/example.md` in this skill's directory.
+Read it before producing your first artifact of this kind.
 
 ---
 
@@ -302,6 +212,8 @@ Search & Retrieval uses a vector similarity approach for semantic search, backed
 
 **Downstream:**
 - **Ticket Breakdown Skill**: Uses architecture decisions, component boundaries, and interface contracts to create technically-informed tickets
+- **Delivery / Code Review / Security Review**: follow and verify architecture decisions (AD-XXX)
+- **Architecture Review Skill**: tests these decisions against the shipped code once it exists
 - **Audit Skill**: Reviews technical design for completeness and consistency with specifications and constraints
 
 ## Revisions
@@ -309,7 +221,8 @@ Search & Retrieval uses a vector similarity approach for semantic search, backed
 - Re-run this skill when specifications or constraints change in ways that affect architectural decisions
 - When re-running, review existing Architecture Decisions first — some may still hold, others may need updating
 - Downstream ticket breakdowns that reference this design become potentially stale when the design changes
-- If only one Architecture Decision changes, update the specific decision and its downstream references rather than regenerating the entire document
+- If only one Architecture Decision changes, update the specific decision and its downstream references rather than regenerating the entire document; superseded decisions stay in the document marked `**Status:** Superseded by AD-XXX`
+- An amended design goes back to `**Status:** Draft` with `**Approved by:** pending` until the Architect approves it again
 
 ## Notes
 

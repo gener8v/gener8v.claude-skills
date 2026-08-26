@@ -1,4 +1,13 @@
+---
+name: code-review
+description: "Review a delivered ticket against the pipeline: acceptance criteria, requirement coverage, constraints, architecture decisions and @spec annotations, producing traceability tables, findings and a verdict. Use after a delivery, in parallel with quality-review and security-review."
+argument-hint: "<capability area> <TICKET-XXX> [in <change-slug>]"
+---
 # Code Review Skill
+
+**Invoked with:** `$ARGUMENTS`
+
+If that is empty, ask the user which delivered ticket to review before doing anything else. Never guess the target. The ticket belongs to a change: when exactly one change is active (`active_changes` in `.gener8v/pipeline-state.yaml`), default to it; when several are active and the argument does not name one (`… in <change-slug>`), ask.
 
 ## Purpose
 
@@ -7,7 +16,7 @@ Review implemented code against pipeline artifacts to verify that a delivery sat
 ## When to Use
 
 Use this skill when:
-- A ticket has been delivered (a delivery record exists in `.gener8v/delivery/`)
+- A ticket has been delivered (a delivery record exists in `.gener8v/changes/<change-slug>/delivery/`)
 - Before marking a ticket as complete or merging code
 - When verifying traceability from requirements through to implemented code
 - When a delivery record shows deviations from the plan that need assessment
@@ -16,13 +25,15 @@ Use this skill when:
 ## Input
 
 **Source:** A delivery record plus the delivered code files and the pipeline artifacts they trace to
+**Change:** `[change-slug]` — from the argument (`in <change-slug>`) or the single active change
 **Read from:**
-- Delivery record: `.gener8v/delivery/[capability-area-slug]-[ticket-id]-delivery.md`
-- Actual code files listed in the delivery record's "Files Produced" section
-- The source ticket: `.gener8v/tickets/[capability-area-slug].md`
-- Specification: `.gener8v/specifications/[capability-area-slug].md`
-- Constraints: `.gener8v/constraints/[capability-area-slug].md` (if available)
+- Delivery record: `.gener8v/changes/[change-slug]/delivery/[capability-area-slug]-[ticket-id]-delivery.md`
+- Actual code files listed in the delivery record's "Files Produced" section — paths are root-relative; in a workspace with several repositories, the `## Repositories` table in `.gener8v/context.md` says which directory is which
+- The source ticket: `.gener8v/changes/[change-slug]/tickets/[capability-area-slug].md`
+- Specification: `.gener8v/specifications/[capability-area-slug].md` (living — functional and non-functional requirements)
+- Constraints: `.gener8v/constraints/prd.md` and `.gener8v/constraints/[capability-area-slug].md` (whichever exist)
 - Technical Design: `.gener8v/technical-design/[capability-area-slug].md` or `.gener8v/technical-design/system-design.md` (if available)
+- Conventions: `.gener8v/CONVENTIONS.md`
 
 **Expects:** A completed delivery record with Files Produced listing actual file paths. The corresponding ticket must exist in the ticket breakdown.
 
@@ -34,15 +45,15 @@ Use this skill when:
 ## Output
 
 **Produces:** A code review report with findings and interactive resolutions
-**Write to:** `.gener8v/reviews/[capability-area-slug]-[ticket-id]-code-review.md`
-**Creates directory:** `.gener8v/reviews/` if it does not exist
+**Write to:** `.gener8v/changes/[change-slug]/reviews/[capability-area-slug]-[ticket-id]-code-review.md`
+**Creates directory:** `.gener8v/changes/[change-slug]/reviews/` if it does not exist
 **Naming convention:** Matches the delivery record naming with `-code-review` suffix
 
-After interactive resolution, the skill may update delivered code files if the user approves changes. The review report captures all findings and their resolutions.
+The report is written as soon as findings are drafted (all `Open`) and updated finding by finding during resolution, so a session that ends mid-review loses nothing. Approved code changes are applied in the resolution phase, re-verified, and recorded in the delivery record's `## Post-Review Amendments`.
 
 ## Output Format
 
-Produce a markdown document with the following structure:
+Produce a markdown document with the following structure. Every code path in it — Files Reviewed, Code Location, Location — is root-relative to the workspace root (`api/src/search/query.ts`), never relative to a repository inside it.
 
 ```markdown
 # [Ticket ID]: [Ticket Title] — Code Review
@@ -72,6 +83,9 @@ Produce a markdown document with the following structure:
 | Requirement | Description | Code Location | Covered |
 |-------------|-------------|---------------|---------|
 | [XX]-REQ-XXX | [Brief description] | [file:line or function] | Yes / No / Partial |
+| [XX]-NFR-XXX | [Measurable target] | [benchmark, test or lint that verifies it — or "not executable"] | Yes / No / Partial |
+
+*[NFRs the ticket carries appear here like requirements. An NFR is Covered when the verification method the ticket names ran in the delivery record's Verification Run and met the target; one the record left Unverified is Partial and an Issue-level finding unless the ticket recorded it as non-executable.]*
 
 ### Constraint Compliance
 
@@ -97,6 +111,15 @@ Produce a markdown document with the following structure:
 
 **Coverage:** [X of Y requirements annotated]
 **Missing:** [List any requirements without `@spec` annotations — each is an Issue-level finding]
+**Specification table:** [Does `## @spec Coverage` in the specification list these locations? Yes / No — a mismatch is an Issue-level finding]
+
+### Verification Run
+
+| Command (from delivery record) | Re-run exit | Matches record |
+|--------------------------------|-------------|----------------|
+| `pytest tests/search -q` | 0 | Yes |
+
+*[A delivery record with no Verification Run, or one whose commands do not reproduce, is a Critical finding.]*
 
 ## Delivery Decisions Review
 
@@ -109,13 +132,13 @@ Produce a markdown document with the following structure:
 ### CR-001: [Finding title]
 
 **Severity:** [Critical / Issue / Observation]
-**Location:** [file:line or function]
+**Location:** [root-relative path:line or function]
 **Traces To:** [REQ-XXX, AD-XXX, constraint ID, or acceptance criterion]
 **Description:** [What the problem is]
 **Impact:** [What goes wrong if not addressed]
 **Recommendation:** [Specific action to resolve]
-**Status:** [Open / Resolved / Deferred]
-**Resolution:** [What was done, if resolved — filled in during interactive session]
+**Status:** [Open / Resolved / Deferred → TICKET-NNN or reason / Dismissed]
+**Resolution:** [What was done, if resolved — filled in during resolution]
 
 ---
 
@@ -130,7 +153,7 @@ Produce a markdown document with the following structure:
 
 ## Verdict
 
-**Result:** [Approved / Approved with Observations / Changes Required]
+**Result:** [Approved / Approved with Notes / Changes Required]
 **Unresolved Findings:** [Count and severity breakdown, if any]
 **Notes:** [Any conditions on the approval or next steps]
 ```
@@ -148,14 +171,17 @@ The ticket defines what should have been built. Review against the ticket, not a
 ### Coverage Is Binary
 Either an acceptance criterion is satisfied or it is not. Either a requirement is covered or it is not. Partial coverage is documented as "Partial" with specifics, not rounded up to "Yes." The traceability tables are the core deliverable of this review — they must be precise.
 
+### Two Phases, Two Runtimes
+**Findings** (steps 1–11) can run in a fresh context — the shipped `code-reviewer` agent, in parallel with the other two reviewers — because a reviewer who did not build the code has no reason to trust the builder's account of it. The findings phase writes the report with every finding `Status: Open` and a provisional verdict, and changes nothing else. **Resolution** (steps 12–14) runs in the main session with the user, one review at a time so three reviewers never edit the same file concurrently. Every approved change is re-verified and appended to the delivery record's `## Post-Review Amendments`; the report is updated per finding as it is resolved, and the final verdict is written last.
+
 ### Interactive Resolution
 Like the Audit skill, findings are presented to the user for resolution. For each finding, the user may:
 - **Approve**: Apply the recommended change to the code
 - **Modify**: Provide a different fix; apply their preferred approach
-- **Defer**: Mark as deferred with rationale
-- **Dismiss**: Determine this is not an issue; mark with rationale
+- **Defer**: Mark as `Deferred → TICKET-NNN` (and append a Known Hazard to that ticket in the ticket file so its implementer sees it) or `Deferred → <reason>`
+- **Dismiss**: Determine this is not an issue; mark `Dismissed` with rationale
 
-The skill updates code files when the user approves changes.
+The skill updates code files when the user approves changes, re-runs the delivery record's Verification Run, and appends the change to `## Post-Review Amendments`.
 
 ### Severity Reflects Pipeline Impact
 - **Critical**: Acceptance criteria not met, requirement not covered, or code contradicts a constraint or architecture decision. Blocks approval.
@@ -164,103 +190,41 @@ The skill updates code files when the user approves changes.
 
 ## Process
 
-1. **Locate Delivery**: Read the delivery record for the target ticket. Extract the list of files produced, the ticket reference, and any DEL-XXX decisions.
+1. **Locate Delivery**: Resolve the change (the argument's `in <change-slug>`, or the single active one), then read the delivery record at `.gener8v/changes/<change-slug>/delivery/`. Extract the list of files produced, the ticket reference, and any DEL-XXX decisions.
 
 2. **Read Delivered Code**: Read all code files listed in the delivery record's Files Produced section.
 
-3. **Gather Pipeline Context**: Read the source ticket, specification, constraints (if available), and technical design (if available) for the capability area.
+3. **Gather Pipeline Context**: Read the source ticket from `.gener8v/changes/<change-slug>/tickets/`, the living specification (functional and non-functional requirements), constraints (if available), and technical design (if available) for the capability area.
 
 4. **Check Acceptance Criteria**: For each acceptance criterion in the ticket, examine the delivered code for evidence of satisfaction. Record the evidence (file, line, function, behavior) or note its absence.
 
-5. **Check Requirement Coverage**: For each requirement the ticket covers (from the Requirements Covered field), verify the code implements it. Identify the specific code location that serves each requirement.
+5. **Check Requirement Coverage**: For each requirement the ticket covers (from the Requirements Covered field), verify the code implements it. Identify the specific code location that serves each requirement. NFR IDs in that field are checked the same way: find the verification method the ticket's acceptance criteria name, confirm it ran in the Verification Run and met the target, and record the verifying artifact as the Code Location.
 
 6. **Check Constraint Compliance**: For each constraint referenced in the ticket (or relevant to the capability area), verify the code respects it. Note how the constraint is honored or violated.
 
 7. **Check Architecture Adherence**: For each relevant architecture decision (AD-XXX) from the technical design, verify the code follows it. Note alignment or divergence.
 
-8. **Check `@spec` Annotations**: For each requirement the ticket covers, verify that an `@spec` annotation exists in the delivered code at the appropriate location. Check that annotations are correctly placed (on the line above the implementing function/class/method), list the right requirement IDs, and that no requirements are missing annotations. Missing annotations are Issue-level findings — traceability must survive in the code, not just in pipeline artifacts.
+8. **Check `@spec` Annotations**: For each requirement the ticket covers, verify that an `@spec` annotation exists in the delivered code at the appropriate location. Check that annotations are correctly placed (on the line above the implementing function/class/method), list the right requirement IDs, and that no requirements are missing annotations. Missing annotations are Issue-level findings — traceability must survive in the code, not just in pipeline artifacts. Then open the specification's `## @spec Coverage` table and confirm it lists the same locations; a missing or stale row is an Issue-level finding.
+
+8b. **Re-run the Verification**: Execute the commands in the delivery record's `## Verification Run` and confirm the exit codes match. A record with no Verification Run, a `Status` other than `Delivered`, or commands that no longer pass is a Critical finding — the review is of code that was never proven.
 
 9. **Review Delivery Decisions**: Examine each DEL-XXX decision in the delivery record. Assess whether the decision was reasonable given the context, and whether it introduced risks or downstream impact.
 
 10. **Review Deviations**: If the delivery record lists deviations from the approved plan, assess their impact on traceability and downstream tickets.
 
-11. **Draft Findings**: For each issue discovered, create a finding with severity, location, traceability reference, description, impact, and recommendation.
+11. **Draft Findings and Write the Report**: For each issue discovered, create a finding with severity, location, traceability reference, description, impact, and recommendation. Write the full report to `.gener8v/changes/<change-slug>/reviews/` now, every finding `Open`, verdict provisional. *(End of the findings phase — when run as the `code-reviewer` agent, stop here and return the report path, verdict and counts.)*
 
-12. **Present to User**: Share findings starting with Critical, then Issues, then Observations. For each finding, explain the issue, its pipeline trace, and the recommended fix. Work through interactive resolution.
+12. **Present to User**: Share findings starting with Critical, then Issues, then Observations. For each finding, explain the issue, its pipeline trace, and the recommended fix. Work through interactive resolution, updating the finding's Status/Resolution and the Resolution Log row in the report as each is decided.
 
-13. **Apply Approved Changes**: Update code files for findings the user approves.
+13. **Apply Approved Changes**: Update code files for findings the user approves, re-run the Verification Run, and append each change to the delivery record's `## Post-Review Amendments`.
 
-14. **Write Report**: Save the code review report to `.gener8v/reviews/`.
+14. **Write the Verdict**: Set the final `**Result:**` last, once every finding has a status.
 
 ## Example
 
-### Input
-
-Reviewing the delivery of TICKET-001 from Search & Retrieval: "Implement query input interface"
-
-Delivery record at `.gener8v/delivery/search-and-retrieval-ticket-001-delivery.md` shows:
-- Files Produced: `src/search/query_input.py`
-- Requirements Covered: SR-REQ-001
-- Acceptance Criteria: 4 criteria, all marked satisfied
-- Decisions: DEL-001 (QueryResult dataclass)
-
-### Output (abbreviated)
-
-````markdown
-# TICKET-001: Implement query input interface — Code Review
-
-## Summary
-
-Reviewed delivery of TICKET-001 against the Search & Retrieval specification and ticket. One file reviewed. All acceptance criteria are satisfied. One observation regarding the DEL-001 decision's downstream impact. No critical or issue-level findings.
-
-**Delivery Record:** `.gener8v/delivery/search-and-retrieval-ticket-001-delivery.md`
-**Files Reviewed:**
-- `src/search/query_input.py`
-
-**Findings:** 1
-**Critical:** 0 | **Issues:** 0 | **Observations:** 1
-
-## Traceability Check
-
-### Acceptance Criteria Coverage
-
-| Criterion | Satisfied | Evidence |
-|-----------|-----------|----------|
-| Accepts free-text input of 500+ characters | Yes | `process_query()` accepts strings up to 10,000 chars; no lower bound enforced beyond non-empty |
-| Passes query to search pipeline unmodified | Yes | `QueryResult.query` returns input string without transformation (line 24) |
-| Provides in-progress feedback | Yes | `QueryResult.status` set to `"processing"` (line 25) |
-| Rejects empty/whitespace queries | Yes | `ValueError` raised at line 18 for empty/whitespace input |
-
-### Requirement Coverage
-
-| Requirement | Description | Code Location | Covered |
-|-------------|-------------|---------------|---------|
-| SR-REQ-001 | Accept natural language questions as input | `src/search/query_input.py:process_query()` | Yes |
-
-## Delivery Decisions Review
-
-| Decision | Assessment | Notes |
-|----------|------------|-------|
-| DEL-001 | Reasonable | QueryResult dataclass is a clean interface for downstream consumers. TICKET-003 Prior Art should reference this type. |
-
-## Findings
-
-### CR-001: QueryResult type not exported in module __init__
-
-**Severity:** Observation
-**Location:** `src/search/query_input.py`
-**Traces To:** TICKET-001 Output section ("exposing a function/method that accepts a string query")
-**Description:** The ticket's Output section says downstream tickets will consume the query interface contract. The `QueryResult` type is defined but not explicitly exported — downstream imports will need to reference the internal module path.
-**Impact:** Minor inconvenience for TICKET-003 implementation; not a correctness issue.
-**Recommendation:** Add `QueryResult` to the module's public API or note the import path in the delivery record's Notes section.
-**Status:** Open
-
-## Verdict
-
-**Result:** Approved with Observations
-**Unresolved Findings:** 1 Observation
-**Notes:** All acceptance criteria satisfied. All requirements covered. CR-001 is a minor export concern that can be addressed during TICKET-003 delivery.
-````
+The worked example reviews `support-search/search-and-retrieval/TICKET-001` (query input, SR-REQ-001..003) end to end: input, traceability tables, `@spec` and verification checks, one Observation-level finding and its verdict.
+It lives at `references/example.md` next to this file.
+Read it before producing your first artifact of this kind.
 
 ---
 
@@ -275,19 +239,21 @@ Reviewed delivery of TICKET-001 against the Search & Retrieval specification and
 
 **Downstream:**
 - **Audit Skill**: Can include code review findings in cross-stage consistency checks
-- Code review reports are reference documents — no other skill consumes them as direct input
+- **Delivery Skill** (later tickets): reads this report for findings deferred to a named ticket
+- **Orchestrate**: reads the `**Result:**` line; `Changes Required` holds the ticket at `changes_required`
 
 ## Revisions
 
 - Code review reports capture a point-in-time assessment — they do not auto-update when code changes
 - If code is modified after review (e.g., from quality or security review findings), the code review remains valid for its original scope but may warrant re-running
-- Previous code review reports remain in `.gener8v/reviews/` for reference
+- Previous code review reports remain in `.gener8v/changes/<change-slug>/reviews/` for reference
 - If the underlying specification or constraints change, re-run the code review to verify continued compliance
 
 ## Notes
 
 - Run this skill after Delivery, before marking a ticket as complete
-- This skill can run in parallel with Quality Review and Security Review — they review different aspects of the same code
+- The findings phase can run in parallel with Quality Review and Security Review (as the three reviewer agents); resolution phases run one at a time
+- Verdict vocabulary is shared by all three reviews: Approved / Approved with Notes / Changes Required (see `CONVENTIONS.md` §5)
 - The traceability tables (acceptance criteria, requirements, constraints, architecture decisions) are the primary output — findings are secondary
 - A delivery with zero findings but incomplete traceability tables is a worse outcome than one with findings and complete tables
 - This skill does not evaluate code quality, performance, or security — those are the responsibilities of Quality Review and Security Review respectively

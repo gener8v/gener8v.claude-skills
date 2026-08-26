@@ -1,3 +1,7 @@
+---
+name: dependencies
+description: "Map dependencies between capability areas, external systems and shared resources into .gener8v/dependencies/dependency-map.md, with phased sequencing, parallelization opportunities and the critical path. Use when a PRD has more than one capability area and implementation order must be decided."
+---
 # Dependencies Skill
 
 ## Purpose
@@ -49,6 +53,8 @@ a clear critical path exists.]
 
 **Analyzed Documents:** [List PRD and/or Specifications analyzed]
 **Capability Areas:** [Enumerate all capability areas in scope]
+**Status:** [Draft / Approved]
+**Approved by:** [Architect — name, YYYY-MM-DD — or "pending"]
 
 ## Internal Dependencies
 
@@ -69,14 +75,14 @@ a clear critical path exists.]
   - *Type:* [Hard / Soft]
   - *Nature:* [API / Data Source / Service / Team / Decision]
   - *Detail:* [What is needed, current availability, known limitations]
-  - *Related Constraints:* [Constraint IDs from Constraints analysis, if applicable]
+  - *Related Constraints:* [Constraint IDs from Constraints analysis, if applicable — qualified by their home document, e.g. `search-and-retrieval/IC-001`]
 
 ## Shared Resources
 
 [Data stores, services, infrastructure, or concepts that multiple
 capability areas depend on. These are coupling points.]
 
-- **SR-001**: [Shared Resource Name]
+- **RES-001**: [Shared Resource Name]
   - *Used By:* [List of capability areas]
   - *Nature:* [Data Store / Service / Configuration / Concept]
   - *Implication:* [Why this coupling matters for sequencing or coordination]
@@ -160,6 +166,8 @@ Do not impose sequencing that the dependencies don't require. If two capabilitie
 
 0. **Validate Input**: Confirm `.gener8v/prd.md` exists and contains multiple capability areas. If the PRD is missing, stop and recommend running the Planning skill. If only one capability area exists, note that internal dependency analysis is not applicable but external dependencies may still be relevant. Read any available specifications and constraints to enrich the analysis.
 
+0b. **Load the Existing Artifact**: If the output file already exists, read it first. Every existing ID and heading is kept; new items are allocated above the current maximum ID; anything no longer applicable is marked `**Status:** Withdrawn` in place rather than deleted. IDs are append-only (`CONVENTIONS.md` §4) — code and downstream documents reference them, and renumbering silently re-binds those references.
+
 1. **Inventory Capability Areas**: List all capability areas from the PRD and any Specifications produced.
 
 2. **Identify Internal Dependencies**: For each capability area, ask: "What does this need from other capability areas before it can start or complete?" Document each dependency with direction, type, and nature.
@@ -180,131 +188,13 @@ Do not impose sequencing that the dependencies don't require. If two capabilitie
 
 10. **Flag Unknowns**: Document questions that affect dependency analysis as Open Questions.
 
+11. **Record Approval**: Write `**Status:** Draft` and `**Approved by:** pending` in Source Context. When the user approves the map in conversation, set `**Status:** Approved` and record `**Approved by:** Architect — <name>, YYYY-MM-DD` (`CONVENTIONS.md` §7). Approval never blocks downstream skills; the record simply says which hat approved the sequencing.
+
 ## Example
 
-### Input
+A full dependency map for the Support Documentation Search System — three capability areas, hard and soft internal dependencies, external dependencies tied to qualified constraint IDs, two shared resources, and a linear critical path with parallelization notes.
 
-Analyzing the Support Documentation Search System PRD with three capability areas:
-- Search & Retrieval
-- Results Presentation
-- Documentation Ingestion
-
-### Output
-
-````markdown
-# Support Documentation Search System — Dependency Map
-
-## Overview
-
-Three capability areas with a clear linear critical path. Documentation Ingestion is the foundational dependency—both Search & Retrieval and Results Presentation require ingested content to function. Results Presentation depends on Search & Retrieval for the result set it displays. No circular dependencies exist.
-
-## Source Context
-
-**Analyzed Documents:** Support Documentation Search System PRD, Search & Retrieval Specification
-**Capability Areas:** Search & Retrieval, Results Presentation, Documentation Ingestion
-
-## Internal Dependencies
-
-### Search & Retrieval → Documentation Ingestion
-
-- **DEP-001**: Search & Retrieval requires indexed documentation to search against
-  - *Type:* Hard
-  - *Nature:* Data
-  - *Detail:* Search queries operate on an index built from ingested documentation. Without ingestion, there is nothing to search.
-
-### Results Presentation → Search & Retrieval
-
-- **DEP-002**: Results Presentation requires a result set to display
-  - *Type:* Hard
-  - *Nature:* Data / Behavior
-  - *Detail:* Presentation layer consumes ranked results with source attribution from Search & Retrieval. The display format depends on the result structure.
-
-### Results Presentation → Documentation Ingestion
-
-- **DEP-003**: Source document navigation requires stable links established during ingestion
-  - *Type:* Soft
-  - *Nature:* Data
-  - *Detail:* "Navigate to full source" functionality requires addressable source references. Presentation can be built against a mock interface, but end-to-end testing requires real ingested references.
-
-## External Dependencies
-
-- **EXT-001**: Documentation Ingestion depends on Confluence API access
-  - *Type:* Hard
-  - *Nature:* API
-  - *Detail:* Confluence is a primary documentation source. API credentials and permission scope needed.
-  - *Related Constraints:* IC-001
-
-- **EXT-002**: Documentation Ingestion depends on legacy help center content extraction
-  - *Type:* Hard
-  - *Nature:* Data Source
-  - *Detail:* Legacy system has no API (IC-002). Extraction method must be determined.
-  - *Related Constraints:* IC-002, RF-001
-
-- **EXT-003**: Compliance review of indexable content
-  - *Type:* Soft
-  - *Nature:* Decision
-  - *Detail:* Data classification policies may restrict which documentation can be indexed (OQ-001 from Constraints analysis). Can proceed with known-safe content initially.
-
-## Shared Resources
-
-- **SR-001**: Document Index
-  - *Used By:* Documentation Ingestion (writes), Search & Retrieval (reads)
-  - *Nature:* Data Store
-  - *Implication:* Index schema decisions in Ingestion directly constrain Search capabilities. These teams (or skill passes) must agree on index structure early.
-
-- **SR-002**: Source Reference Format
-  - *Used By:* Documentation Ingestion (produces), Results Presentation (consumes)
-  - *Nature:* Data Contract
-  - *Implication:* How sources are identified during ingestion determines how Presentation links back to them. Format must be defined before either capability is complete.
-
-## Sequencing Analysis
-
-### Dependency Graph
-
-```
-[Documentation Ingestion] ──→ [Search & Retrieval] ──→ [Results Presentation]
-         ↑                                                       │
-         └──────────── (soft: source references) ────────────────┘
-```
-
-### Suggested Sequence
-
-1. **Phase 1**: Documentation Ingestion — no internal dependencies; can begin immediately once external dependencies (EXT-001, EXT-002) are resolved
-2. **Phase 2**: Search & Retrieval — requires index from Phase 1
-3. **Phase 3**: Results Presentation — requires result set from Phase 2
-
-### Parallelization Opportunities
-
-- Results Presentation interface design can proceed in parallel with Phases 1-2 using mock data, though integration testing requires real results
-- Search & Retrieval query logic can be developed against a test index while full ingestion proceeds
-- Source reference format (SR-002) should be defined early to unblock parallel interface work
-
-### Critical Path
-
-Documentation Ingestion → Search & Retrieval → Results Presentation
-
-*Rationale:* Each step produces the data the next step consumes. This is a strictly linear chain for full integration, though partial parallel work is possible with mocks.
-
-## Risk Dependencies
-
-- **RD-001**: Legacy help center extraction method is undefined (EXT-002)
-  - *Risk:* If no programmatic extraction is possible, Documentation Ingestion scope increases significantly or legacy content is excluded
-  - *Mitigation:* Investigate extraction options in Phase 1; define fallback scope that excludes legacy content
-
-- **RD-002**: Compliance review timeline is unknown (EXT-003)
-  - *Risk:* Content restrictions discovered late could invalidate index design or reduce system utility
-  - *Mitigation:* Begin with documentation known to be unrestricted; run compliance review in parallel
-
-## Open Questions
-
-- [ ] **OQ-001**: Can index updates be incremental, or must the full index be rebuilt on documentation changes?
-- [ ] **OQ-002**: Is there an existing document identifier system, or must one be created during ingestion?
-
-## Assumptions
-
-- Assumption: Confluence API access can be provisioned within the project timeline
-- Assumption: The document index is a single shared resource, not per-source
-````
+See `references/example.md` (relative to this skill's directory). Read it before producing your first dependency map.
 
 ---
 
@@ -324,7 +214,8 @@ Documentation Ingestion → Search & Retrieval → Results Presentation
 - Re-run this skill when capability areas are added, removed, or significantly changed in the PRD
 - Re-run when new specifications or constraints reveal dependencies not visible from the PRD alone
 - The dependency map is a single file covering the entire PRD — partial updates are possible but full regeneration is safer when multiple areas change
-- Downstream tickets that reference dependency IDs (DEP-XXX, EXT-XXX) become potentially stale when the dependency map changes
+- Downstream tickets that reference dependency IDs (DEP-XXX, EXT-XXX, RES-XXX) become potentially stale when the dependency map changes; IDs are append-only
+- Shared resources use the `RES-` prefix (not `SR-`, which collides with a requirement prefix such as Search & Retrieval's `SR-REQ-XXX`)
 
 ## Notes
 

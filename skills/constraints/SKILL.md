@@ -1,4 +1,13 @@
+---
+name: constraints
+description: "Surface technical, compliance, integration and operational constraints (TC/CC/IC/OC-XXX) from the PRD or one specification, each with rationale, impact on requirement IDs, interactions and risk flags. Use before technical design or ticket breakdown whenever the system has regulatory, infrastructure or integration boundaries."
+argument-hint: "<prd | capability area>"
+---
 # Constraints Skill
+
+**Invoked with:** `$ARGUMENTS`
+
+If that is empty, ask the user whether to analyze the PRD or a single capability area's specification before doing anything else. Never guess the target.
 
 ## Purpose
 
@@ -34,7 +43,7 @@ Use this skill when:
 - If analyzing the PRD: `prd.md`
 - If analyzing a specification: matches the specification filename (e.g., `search-and-retrieval.md`)
 
-A single constraints analysis can cover the PRD (broad) or one specification (deep). State which in the Source Context section of the output.
+A single constraints analysis can cover the PRD (broad) or one specification (deep). State which in the Source Context section of the output, together with `**Status:**` and `**Approved by:**` — the Architect approves constraints (`CONVENTIONS.md` §7). Downstream skills read **both** `constraints/prd.md` and the area's `constraints/<slug>.md`; area-level entries refine PRD-level ones, and both apply. Because numbering restarts per file, a constraint referenced from any other document is qualified by its source: `prd/CC-001`, `search-and-retrieval/TC-002` (`CONVENTIONS.md` §4).
 
 ## Output Format
 
@@ -53,6 +62,8 @@ scope or feasibility.]
 
 **Analyzed Document:** [Title and type — PRD or Specification]
 **Capability Areas Covered:** [List which capability areas this analysis spans]
+**Status:** [Draft / Approved]
+**Approved by:** [Architect — name, YYYY-MM-DD — or "pending"]
 
 ## Technical Constraints
 
@@ -119,7 +130,7 @@ or organizational capacity.]
 ## Principles
 
 ### Constraints Are Not Requirements
-Requirements describe what the system does. Constraints describe what the system must operate within. "The system should support 1000 concurrent users" is a requirement. "The existing database infrastructure supports a maximum of 500 concurrent connections" is a constraint.
+Requirements describe what the system does. Constraints describe what the system must operate within. "The system should support 1000 concurrent users" is a requirement. "The existing database infrastructure supports a maximum of 500 concurrent connections" is a constraint. Non-functional requirements are targets the system must achieve (p95 latency, availability, retention) with a named verification method, and they belong in the specification's `## Non-Functional Requirements` section — a constraint is the boundary the system must operate within on the way to that target, so do not restate an NFR here; cite the constraint that bounds it.
 
 ### Surface the Implicit
 Many constraints are unstated in PRDs and Specifications because they are assumed. This skill's primary value is making the invisible visible—platform limitations, regulatory obligations, organizational policies, and integration boundaries that shape implementation but are rarely written down.
@@ -140,7 +151,9 @@ Where possible, cite the source of a constraint (regulation name, API documentat
 
 0. **Validate Input**: Confirm the target document exists. If analyzing a specification, verify it contains numbered requirements. If the file is missing, stop and recommend the appropriate upstream skill. If `.gener8v/context.md` exists, read it for technology stack, infrastructure, and organizational context that grounds the analysis.
 
-1. **Identify Source Material**: Determine whether analyzing a PRD (broader, multiple capabilities) or a Specification (single capability, more detail). Adjust depth accordingly.
+0b. **Load the Existing Artifact**: If the output file already exists, read it first. Every existing ID and heading is kept; new items are allocated above the current maximum ID; anything no longer applicable is marked `**Status:** Withdrawn` in place rather than deleted. IDs are append-only (`CONVENTIONS.md` §4) — code and downstream documents reference them, and renumbering silently re-binds those references.
+
+1. **Identify Source Material**: Determine whether analyzing a PRD (broader, multiple capabilities) or a Specification (single capability, more detail). Adjust depth accordingly. When analyzing a specification and `constraints/prd.md` exists, read it first and do not restate its entries — refine or reference them.
 
 2. **Scan for Technical Constraints**: Review requirements for implied infrastructure needs, performance boundaries, platform limitations, data volume assumptions, and technology prerequisites.
 
@@ -150,6 +163,8 @@ Where possible, cite the source of a constraint (regulation name, API documentat
 
 5. **Scan for Operational Constraints**: Consider deployment environment, support model, scaling expectations, maintenance windows, monitoring needs, and organizational capacity to operate the system.
 
+5b. **Verify Against the Repository**: Where the codebase can confirm or refute a constraint — a pinned dependency version, a database engine in the compose file, a rate limit in config, a CI target — read it and cite it as the rationale. A constraint the repository contradicts is an Open Question, not a fact.
+
 6. **Map Interactions**: Review constraints pairwise for reinforcement, conflict, or conditional relationships.
 
 7. **Assess Risk**: Identify constraints that pose the highest risk to feasibility or scope. Assign severity and recommend action.
@@ -158,85 +173,11 @@ Where possible, cite the source of a constraint (regulation name, API documentat
 
 9. **Review for Completeness**: Ensure each constraint has rationale and impact. Remove constraints that don't connect to the analyzed document.
 
+10. **Record Approval State**: Write `**Status:** Draft` and `**Approved by:** pending` in Source Context. When the user, acting as Architect, approves the analysis in conversation, update both lines to `**Status:** Approved` and `**Approved by:** Architect — <name>, YYYY-MM-DD` (`CONVENTIONS.md` §7). Approval never blocks downstream skills; the record simply says which state the analysis is in.
+
 ## Example
 
-### Input
-
-Analyzing the "Search & Retrieval" Specification from the Support Documentation Search System PRD, which includes requirements such as:
-- SR-REQ-001: The system should accept natural language questions as input
-- SR-REQ-003: The system should indicate the source document for each result
-- SR-REQ-004: The system should handle questions even when exact terminology doesn't match
-
-### Output
-
-````markdown
-# Search & Retrieval — Constraints Analysis
-
-## Overview
-
-Analysis of the Search & Retrieval specification surfaces constraints primarily around existing documentation infrastructure and data handling obligations. The most significant constraint is that documentation currently spans multiple formats and systems with no unified access layer.
-
-## Source Context
-
-**Analyzed Document:** Search & Retrieval Specification (from Support Documentation Search System PRD)
-**Capability Areas Covered:** Search & Retrieval
-
-## Technical Constraints
-
-- **TC-001**: Natural language matching (SR-REQ-004) requires semantic search capability beyond keyword matching
-  - *Rationale:* Terminology mismatch handling implies vector similarity or equivalent approach
-  - *Impact:* SR-REQ-004, Documentation Ingestion capability
-
-- **TC-002**: Source document linking (SR-REQ-003) requires documentation to retain stable, addressable identifiers
-  - *Rationale:* Deep links break if source systems reorganize content without redirects
-  - *Impact:* SR-REQ-003, Results Presentation capability
-
-## Compliance & Regulatory Constraints
-
-- **CC-001**: If documentation contains customer data examples, search results must respect data access controls
-  - *Rationale:* Support documentation sometimes includes sanitized customer scenarios that may contain PII
-  - *Impact:* SR-REQ-001, SR-REQ-003
-
-## Integration Constraints
-
-- **IC-001**: Existing documentation spans Confluence, PDF manuals, and a legacy help center with no unified API
-  - *Rationale:* Each source has different access patterns and update mechanisms
-  - *Impact:* Documentation Ingestion capability, SR-REQ-003 (source linking varies by system)
-
-- **IC-002**: The legacy help center does not support programmatic content extraction
-  - *Rationale:* No API; content is rendered server-side with no export function
-  - *Impact:* Documentation Ingestion capability
-
-## Operational Constraints
-
-- **OC-001**: The support team operates 24/7; system downtime for index updates must be zero or near-zero
-  - *Rationale:* Support agents rely on search during active customer interactions
-  - *Impact:* Documentation Ingestion capability (update mechanism)
-
-## Constraint Interactions
-
-| Constraint | Interacts With | Nature of Interaction |
-|------------|---------------|----------------------|
-| IC-001 | TC-002 | Conflicting — multiple source systems make stable linking harder |
-| IC-002 | OC-001 | Conditional — workaround for legacy extraction may require scheduled batch jobs |
-
-## Risk Flags
-
-- **RF-001**: Legacy help center extraction (IC-002) may require screen scraping or manual export
-  - *Related Constraints:* IC-002, OC-001
-  - *Severity:* Medium
-  - *Recommendation:* Investigate legacy system capabilities; consider excluding from initial scope
-
-## Open Questions
-
-- [ ] **OQ-001**: Does the organization have data classification policies that affect which documentation can be indexed?
-- [ ] **OQ-002**: Are there SLAs for search availability that constrain the update mechanism?
-
-## Assumptions
-
-- Assumption: Confluence and PDF sources have API or export access available
-- Assumption: Documentation does not contain classified or restricted content beyond potential PII
-````
+A full constraints analysis of the Search & Retrieval specification of the Support Documentation Search System — technical, compliance, integration and operational constraints with rationale and requirement impact, interactions, a risk flag, and the Source Context approval lines. It lives at `skills/constraints/references/example.md`. Read it before producing your first artifact of this kind.
 
 ---
 
@@ -250,12 +191,13 @@ Analysis of the Search & Retrieval specification surfaces constraints primarily 
 - **Dependencies Skill**: Uses constraints to identify external dependencies and sequencing impacts
 - **Technical Design Skill**: Uses constraints as boundaries that architecture decisions must respect
 - **Ticket Breakdown Skill**: Uses constraints to scope work items and define acceptance criteria boundaries
+- **Delivery / Code Review / Security Review**: read both PRD-level and area-level constraints; compliance constraints (CC-XXX) at either level are Critical when violated
 
 ## Revisions
 
 - Re-run this skill when the source specification or PRD changes in ways that affect constraints
 - Re-run when system context (`.gener8v/context.md`) is created or updated, as new technology or infrastructure information may reveal constraints not previously identified
-- Downstream technical designs and tickets that reference constraint IDs become potentially stale when constraints change
+- Downstream technical designs and tickets that reference constraint IDs become potentially stale when a constraint's text changes; IDs themselves never change (append-only, Withdrawn in place)
 - If only new constraints are added (existing IDs unchanged), downstream artifacts may only need additive updates rather than full regeneration
 
 ## Notes

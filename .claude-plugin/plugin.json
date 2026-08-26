@@ -1,7 +1,8 @@
 {
-  "name": "gener8v-claude-skills",
-  "description": "A structured pipeline for turning ideas into delivered, reviewed code — from PRD through specification, constraints, dependencies, technical design, ticket breakdown, delivery, and code review. Works for greenfield and brownfield projects.",
-  "version": "0.1.0",
+  "name": "gener8v",
+  "displayName": "gener8v Pipeline",
+  "description": "A structured pipeline for turning ideas into delivered, reviewed code — PRD, specification, constraints, dependencies, technical design, tickets, delivery with @spec traceability, code/quality/security reviews, OWASP and architecture assessments, flow maps, defect sweeps, audit and orchestration — with hooks that keep pipeline state in front of every session. Greenfield and brownfield.",
+  "version": "0.2.0",
   "author": {
     "name": "gener8v"
   },
@@ -10,7 +11,13 @@
   "license": "MIT",
   "keywords": [
     "skills",
-    "slash-commands",
+    "pipeline",
+    "requirements",
+    "traceability",
+    "code-review",
+    "security-review",
+    "hooks",
     "claude-code"
-  ]
+  ],
+  "hooks": "./hooks/hooks.json"
 }

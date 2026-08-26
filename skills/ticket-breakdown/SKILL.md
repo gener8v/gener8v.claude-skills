@@ -1,4 +1,15 @@
+---
+name: ticket-breakdown
+description: "Decompose one capability area's requirements for one change into implementable tickets with Priority, Value, acceptance criteria, Prior Art, Output contracts, Known Hazards, dependency ordering and relative sizing at .gener8v/changes/<change-slug>/tickets/<area-slug>.md. Use when a specification is approved and the team needs work items."
+argument-hint: "<capability area> [for <change-slug>]"
+---
 # Ticket Breakdown Skill
+
+**Invoked with:** `$ARGUMENTS`
+
+If that is empty, ask the user which capability area's specification to break down before doing anything else. Never guess the target.
+
+Every breakdown belongs to a change. When the argument carries no `for <change-slug>`, read `.gener8v/pipeline-state.yaml`: if exactly one change lists this area under `pending_breakdown`, or exactly one change is active (`active_changes`; a change is active while its status is `ready` or `in_delivery` — a change with no tickets yet is `planned`, not active), default to it; when several changes could apply, ask which change before doing anything else. If no change exists at all, stop and recommend running the Planning skill to open one.
 
 ## Purpose
 
@@ -15,27 +26,33 @@ Use this skill when:
 
 ## Input
 
-**Source:** A Specification, plus the corresponding Constraints analysis, Dependency Map, and Technical Design
+**Source:** The change brief and the living Specification for the capability area, plus the corresponding Constraints analysis, Dependency Map, and Technical Design
 **Read from:**
+- Change brief: `.gener8v/changes/[change-slug]/change.md` — the **Priority Cut** and this area's row in **Affected Capability Areas**
 - Specification: `.gener8v/specifications/[capability-area-slug].md`
-- Constraints: `.gener8v/constraints/[capability-area-slug].md` (if available)
+- Constraints: `.gener8v/constraints/prd.md` and `.gener8v/constraints/[capability-area-slug].md` (whichever exist)
 - Dependency Map: `.gener8v/dependencies/dependency-map.md` (if available)
 - Technical Design: `.gener8v/technical-design/[capability-area-slug].md` or `.gener8v/technical-design/system-design.md` (if available)
 
-**Expects:** At minimum, a Specification with numbered requirements ([PREFIX]-REQ-XXX). If Constraints, Dependency Map, or Technical Design files are not available, note "Not yet performed" in the Source Context section of the output and proceed without them.
+**Expects:** At minimum, a change brief and a Specification with numbered requirements ([PREFIX]-REQ-XXX and, where present, [PREFIX]-NFR-XXX). If Constraints, Dependency Map, or Technical Design files are not available, note "Not yet performed" in the Source Context section of the output and proceed without them.
+
+**Scope:** Only the requirements and NFRs the brief's Affected Capability Areas row *adds* or *modifies* for this area are in scope, unless the brief says otherwise (for example, a row that names an unchanged requirement the change also delivers). The living specification carries every requirement the product has ever had; the brief says which of them this change is about. The Priority Cut decides what not to build — a requirement the brief places under *Could / later* may be left without a ticket, and the breakdown says so.
+
+**Other sources of tickets** (the same output format, appended to the area's breakdown under the active change with IDs above the current maximum — or to a new `fix-<subsystem>` change opened via Planning when no change is active): findings a Defect Sweep verdict says to fix now (`.gener8v/sweeps/*-sweep.md`, cite `DS-XXX`), review findings deferred to a new ticket (cite `<change-slug>/<report-slug>/CR-XXX` etc.), and behaviours Brownfield flagged as bugs in a specification's Open Questions. A bug fix is a Small ticket whose Requirements Covered names the requirement the bug violates — it does not need a new PRD.
 
 **If input is missing or malformed:**
-- If no specification exists for the target capability area, stop and recommend running the Specification skill first
+- If no change brief exists, stop and recommend running the Planning skill to open the change first
+- If no specification exists for the target capability area, or the brief's row for this area still says `(pending specification)`, stop and recommend running the Specification skill for this change first
 - If constraints, dependencies, or technical design are missing, proceed but note the gap — tickets will lack constraint-informed criteria, dependency ordering, or architecture context respectively
 
 ## Output
 
-**Produces:** A ticket breakdown for one capability area
-**Write to:** `.gener8v/tickets/[capability-area-slug].md`
-**Creates directory:** `.gener8v/tickets/` if it does not exist
+**Produces:** A ticket breakdown for one capability area within one change
+**Write to:** `.gener8v/changes/[change-slug]/tickets/[capability-area-slug].md`
+**Creates directory:** `.gener8v/changes/[change-slug]/tickets/` if it does not exist
 **Naming convention:** Matches the specification filename (e.g., `search-and-retrieval.md`)
 
-Run this skill once per Specification. The output is the final artifact in the pipeline — ready for implementation teams or task management tooling.
+Run this skill once per change and capability area. Ticket IDs restart at TICKET-001 in every breakdown file; from any other document a ticket is referenced qualified — `<change-slug>/<area-slug>/TICKET-003` (`CONVENTIONS.md` §4). The output feeds Delivery, which implements one ticket at a time.
 
 ## Output Format
 
@@ -51,6 +68,7 @@ how they cluster, and any notable sequencing from the dependency analysis.]
 
 ## Source Context
 
+**Change:** [Change title] (`changes/[change-slug]/change.md`)
 **Specification:** [Title of the specification being decomposed]
 **Constraints Analysis:** [Title, or "Not yet performed"]
 **Dependency Map:** [Title, or "Not yet performed"]
@@ -62,32 +80,40 @@ how they cluster, and any notable sequencing from the dependency analysis.]
 
 **Summary:** [1-2 sentences describing what this ticket accomplishes]
 
+**Priority:** [Must / Should / Could — from the change brief's Priority Cut]
+**Value:** [One sentence — what the user or operator gets when this lands]
+
 **Requirements Covered:**
 - [XX]-REQ-001: [Brief description]
 - [XX]-REQ-002: [Brief description]
+- [XX]-NFR-001: [Brief description — NFR IDs are listed exactly like REQ IDs]
 
 **Prior Art:** [What to read/understand before starting. For tickets with
 no dependencies, point to relevant pipeline documents. For tickets that
 depend on other tickets, specify the files and directories produced by
 those tickets that this work builds on.]
-- Read: [file path — source file, config, module, or pipeline artifact]
+- Read: [root-relative file path — source file, config, module, or pipeline artifact]
 - Understand: [what to look for in that file and why it matters]
 
 **Acceptance Criteria:**
 - [ ] [Observable, verifiable condition that must be true when complete]
 - [ ] [Another condition]
-- [ ] [Another condition]
+- [ ] [For each NFR carried: the measurable target and its verification method —
+      e.g., "p95 latency ≤ 800 ms at 50 concurrent users, verified by the k6 load test"]
 
 **Output:**
-- [File or directory this ticket produces or modifies, with enough
-  detail that downstream tickets can locate the work]
+- [File or directory this ticket produces or modifies, root-relative to the
+  workspace (e.g., `api/src/search/query.ts`), with enough detail that
+  downstream tickets can locate the work]
+- [The test file(s) that prove the acceptance criteria — every ticket with
+  testable criteria lists at least one; name which criterion each test covers]
 
 **Constraints:**
 - [Relevant constraint IDs and brief description, or "None identified"]
 
 **Known Hazards:** [Front-loaded traps the implementer must know *before* starting — or "None identified". This is where decision supersessions, cross-document conflicts, and schema/pattern gotchas live, so they are seen first, not discovered mid-build. Each hazard names what to do about it.]
-- [e.g., "DEC-133 supersedes AC-22-004 — build the New Leads filter on `created_at`, NOT `stage_updated_at`; the spec text is stale"]
-- [e.g., "Spec conflict: this AC and BR-22.23 disagree on edit-lock behavior — implement per BR-22.23, flag the conflict as an EXCEPTION in the delivery record, do NOT silently reconcile"]
+- [e.g., "AD-004 supersedes the spec's wording of SR-REQ-006 — rank on the stored score, NOT on recomputed similarity; the spec text is stale"]
+- [e.g., "Spec conflict: SR-REQ-009 and TC-002 disagree on whether a source reference may be a URL — implement per TC-002, flag the conflict in the delivery record's Decisions, do NOT silently reconcile"]
 - [e.g., "`status` has no DB CHECK — enforce the enum at the application layer at every write path"]
 
 **Depends On:** [Other ticket IDs this is blocked by, or "None"]
@@ -114,7 +140,9 @@ TICKET-002 ──→ TICKET-004 ──┘
 
 ## Suggested Ordering
 
-[Recommended implementation sequence with rationale]
+[Recommended implementation sequence with rationale — weigh priority with
+dependency and risk; a Could ticket never precedes a Must ticket unless a
+dependency forces it]
 
 1. **TICKET-001** — [Why first: foundational, unblocks others, etc.]
 2. **TICKET-002** — [Can parallel with TICKET-001 because...]
@@ -122,15 +150,17 @@ TICKET-002 ──→ TICKET-004 ──┘
 
 ## Backlog Summary
 
-| Ticket | Title | Size | Depends On | Status |
-|--------|-------|------|------------|--------|
-| TICKET-001 | [Title] | Small | None | Ready |
-| TICKET-002 | [Title] | Medium | None | Ready |
-| TICKET-003 | [Title] | Large | TICKET-001 | Blocked |
-| ... | ... | ... | ... | ... |
+| Ticket | Title | Priority | Size | Depends On | Status |
+|--------|-------|----------|------|------------|--------|
+| TICKET-001 | [Title] | Must | Small | None | Ready |
+| TICKET-002 | [Title] | Must | Medium | None | Ready |
+| TICKET-003 | [Title] | Should | Large | TICKET-001 | Blocked |
+| ... | ... | ... | ... | ... | ... |
 
 **Total Tickets:** [Count]
 **Ready to Start:** [Count of tickets with no unresolved dependencies]
+
+*Status here is as of this breakdown. Live status (delivered, reviewed, done) is derived from delivery records and reviews into `.gener8v/pipeline-state.yaml`; this table is not updated as tickets progress.*
 ```
 
 ---
@@ -147,7 +177,10 @@ Acceptance criteria define "done." They must be observable and verifiable—not 
 **Avoid:** "Search works well and returns good results."
 
 ### Trace to Requirements
-Every ticket should reference the requirements (REQ-XXX) it satisfies. Every requirement from the Specification should appear in at least one ticket. If a requirement has no ticket, it has been dropped—intentionally or accidentally. Both should be visible.
+Every ticket should reference the requirements (REQ-XXX) and non-functional requirements (NFR-XXX) it satisfies. Every in-scope requirement — the ones the change brief adds or modifies for this area — should appear in at least one ticket. If a requirement has no ticket, it has been dropped—intentionally (the Priority Cut put it under *Could / later*) or accidentally. Both should be visible. A ticket that carries an NFR lists the NFR's verification method under its Acceptance Criteria; an NFR whose target cannot be verified is an Open Question, not a criterion.
+
+### Priority and Value Come From the Brief
+Every ticket carries a **Priority** (`Must` / `Should` / `Could`) and a one-sentence **Value**. Priority is read from the change brief's Priority Cut, not invented per ticket; when a ticket covers requirements of mixed priority it takes the highest, and the split is worth reconsidering. Value states what the user or operator gets when the ticket lands — if that sentence is hard to write, the ticket is probably an implementation step rather than an outcome.
 
 ### Size Is Relative, Not Absolute
 Size indicators (Small / Medium / Large) communicate relative complexity and scope, not duration. They help with planning and load balancing without the false precision of hour estimates.
@@ -163,7 +196,7 @@ Ticket dependencies should reflect actual implementation order, informed by the 
 Constraints from the Constraints analysis should manifest as acceptance criteria or notes on relevant tickets. A compliance constraint becomes a testable condition. A technical constraint becomes a boundary the implementation must respect.
 
 ### Front-Load the Hazards
-The most expensive failure mode in agent-driven delivery is the implementer building confidently on a wrong assumption — a stale spec, a superseded decision, a schema gotcha, or a conflict between two source documents. The single most effective mitigation is a **Known Hazards** section at the top of the ticket that names these traps *before* the work, with what to do about each. Three kinds belong here: (1) **supersessions** — where a decision overrides spec text the implementer would otherwise follow; (2) **cross-document conflicts** — where two artifacts disagree, with an instruction to implement one and surface the conflict rather than silently reconcile it; (3) **schema/pattern gotchas** — invariants enforced only at the application layer, unusual delete semantics, permission-matrix variations that look uniform but aren't. A hazard without a "so do X" is a worry, not a hazard — always state the resolution.
+The most expensive failure mode in agent-driven delivery is the implementer building confidently on a wrong assumption — a stale spec, a superseded decision, a schema gotcha, or a conflict between two source documents. The single most effective mitigation is a **Known Hazards** section at the top of the ticket that names these traps *before* the work, with what to do about each. Three kinds belong here: (1) **supersessions** — where an architecture decision (AD-XXX), a delivery decision (DEL-XXX) or a resolved Open Question overrides spec text the implementer would otherwise follow; (2) **cross-document conflicts** — where two artifacts disagree, with an instruction to implement one and surface the conflict rather than silently reconcile it; (3) **schema/pattern gotchas** — invariants enforced only at the application layer, unusual delete semantics, permission-matrix variations that look uniform but aren't. Review skills may append a hazard here when they defer a finding to this ticket. A hazard without a "so do X" is a worry, not a hazard — always state the resolution.
 
 ### Self-Contained Tickets
 Each ticket should be understandable without reading every other ticket. Include enough context in the summary and acceptance criteria that a developer can pick it up and know what to build. Reference other tickets for dependency, not for comprehension.
@@ -172,246 +205,72 @@ Each ticket should be understandable without reading every other ticket. Include
 Every ticket must include a **Prior Art** section that tells the implementing agent exactly what to read before starting. For tickets with no dependencies, this points to pipeline documents (specifications, constraints, dependency map). For tickets that depend on other tickets, this points to the specific files and modules those tickets produced. An LLM picking up TICKET-003 should never have to guess where TICKET-001's code lives.
 
 ### Output Tells Downstream Where to Find You
-Every ticket must include an **Output** section that describes the files or directories the ticket produces or modifies. This is the contract between this ticket and any ticket that depends on it. Be specific: name the file path, describe what it exposes (function signatures, data structures, configuration), and note what downstream tickets will consume from it.
+Every ticket must include an **Output** section that describes the files or directories the ticket produces or modifies. This is the contract between this ticket and any ticket that depends on it. Be specific: name the file path — root-relative to the workspace root, so `api/src/search/query.ts` rather than `src/search/query.ts` when several repositories share the root (`CONVENTIONS.md` §8) — describe what it exposes (function signatures, data structures, configuration), and note what downstream tickets will consume from it. A ticket that touches two repositories is two tickets unless the change is atomic.
 
 ## Process
 
-1. **Gather Inputs**: Collect the Specification, Constraints Analysis, and Dependency Map for the capability area. Note any open questions that remain unresolved.
+1. **Gather Inputs**: Collect the change brief, the Specification, Constraints Analysis, Dependency Map and Technical Design for the capability area. From the brief's Affected Capability Areas row, list the requirement and NFR IDs in scope for this change; from its Priority Cut, note the priority each will carry. Note any open questions that remain unresolved.
 
 2. **Identify Natural Boundaries**: Read through the Specification's requirements and look for natural groupings—subsections, data flows, interaction patterns, or state transitions that form coherent units of work.
 
+2b. **Load the Existing Artifact**: If the output file already exists, read it first. Every existing ID and heading is kept; new items are allocated above the current maximum ID; anything no longer applicable is marked `**Status:** Withdrawn` in place rather than deleted. IDs are append-only (`CONVENTIONS.md` §4) — code and downstream documents reference them, and renumbering silently re-binds those references.
+
 3. **Draft Tickets**: For each boundary, create a ticket. Write the summary first, then map requirements, then define acceptance criteria.
 
-4. **Define Prior Art**: For each ticket, identify what the implementing agent needs to read before starting. Point to pipeline artifacts (`.gener8v/` files) and, for dependent tickets, the specific source files and modules produced by predecessor tickets.
+4. **Define Prior Art**: For each ticket, identify what the implementing agent needs to read before starting. Point to pipeline artifacts (`.gener8v/` files) and, for dependent tickets, the specific source files and modules produced by predecessor tickets — every code path root-relative to the workspace root. **Verify every path you cite exists** (or is declared in a predecessor's Output) — a Prior Art entry pointing at a file that is not there is exactly the wrong assumption the Known Hazards section exists to prevent.
 
-5. **Define Output**: For each ticket, specify what files or directories it produces or modifies. Name paths, describe exposed interfaces, and note what downstream tickets will consume. Use `{ext}` as a placeholder when the language/framework is not yet decided.
+5. **Define Output**: For each ticket, specify what files or directories it produces or modifies, including the test file(s) that prove its acceptance criteria. Name paths, describe exposed interfaces, and note what downstream tickets will consume. Use `{ext}` as a placeholder when the language/framework is not yet decided.
 
 6. **Apply Constraints**: Review each ticket against the Constraints Analysis. Add relevant constraints as acceptance criteria or notes.
 
-7. **Surface Known Hazards**: For each ticket, scan the source artifacts for traps the implementer must know before starting — decision supersessions (a KDL/decision entry that overrides spec text), cross-document conflicts (two artifacts that disagree), and schema/pattern gotchas (app-layer-only invariants, unusual delete semantics, permission variations). Record each in the ticket's **Known Hazards** field with its resolution. If none exist, state "None identified" — the empty field is a signal that the scan was done, not skipped.
+7. **Surface Known Hazards**: For each ticket, scan the source artifacts for traps the implementer must know before starting — decision supersessions (an architecture or delivery decision that overrides spec text), cross-document conflicts (two artifacts that disagree), and schema/pattern gotchas (app-layer-only invariants, unusual delete semantics, permission variations). Record each in the ticket's **Known Hazards** field with its resolution. If none exist, state "None identified" — the empty field is a signal that the scan was done, not skipped.
 
 8. **Map Ticket Dependencies**: Using the Dependency Map and the requirements themselves, determine which tickets block which. Keep the graph as flat as possible—deep chains reduce parallelization.
 
 9. **Size Tickets**: Assign relative size. If any ticket is Large, evaluate whether it can be split without creating artificial boundaries.
 
-10. **Verify Coverage**: Check that every requirement from the Specification appears in at least one ticket. Check that no requirement is orphaned. Check that every ticket has Prior Art, Output, and Known Hazards sections.
+10. **Verify Coverage**: Check that every in-scope requirement and NFR appears in at least one ticket. Check that no requirement is orphaned; where the Priority Cut deliberately leaves one out, say so in the Overview. Check that every ticket has Priority, Value, Prior Art, Output, and Known Hazards sections, and that every ticket carrying an NFR names its verification method in the Acceptance Criteria.
 
-11. **Determine Ordering**: Propose an implementation sequence based on dependencies, risk (build risky things first), and value (deliver demonstrable capability early).
+11. **Determine Ordering**: Propose an implementation sequence that weighs priority with dependencies and risk: Must before Should before Could, risky things first within a priority band, demonstrable capability early. A Could ticket never precedes a Must ticket unless a dependency forces it — and if one does, say which.
 
-12. **Build Summary Table**: Create the backlog summary with dependency status so "ready to start" tickets are immediately visible.
+12. **Build Summary Table**: Create the backlog summary with priority and dependency status so "ready to start" tickets — and the Must tickets among them — are immediately visible.
 
 13. **Flag Gaps**: If open questions from upstream skills affect ticket definition, note them. If a ticket cannot be fully specified, say so and identify what is needed.
 
 ## Example
 
-### Input
-
-Decomposing the "Search & Retrieval" Specification with requirements:
-- SR-REQ-001: Accept natural language questions as input
-- SR-REQ-002: Return relevant documentation excerpts ranked by relevance
-- SR-REQ-003: Indicate the source document for each result
-- SR-REQ-004: Handle questions even when exact terminology doesn't match
-
-With constraints TC-001 (semantic search needed for SR-REQ-004) and TC-002 (stable identifiers needed for SR-REQ-003), and dependency DEP-001 (requires indexed documentation from Documentation Ingestion).
-
-### Output
-
-````markdown
-# Search & Retrieval — Ticket Breakdown
-
-## Overview
-
-Four tickets decomposed from the Search & Retrieval specification. The work forms a short dependency chain: query interface and search index setup can proceed in parallel, followed by ranking logic, then source attribution. Total of 2 Small, 1 Medium, and 1 Medium ticket.
-
-## Source Context
-
-**Specification:** Search & Retrieval Specification
-**Constraints Analysis:** Search & Retrieval Constraints Analysis
-**Dependency Map:** Support Documentation Search System Dependency Map
-
-## Tickets
-
-### TICKET-001: Implement query input interface
-
-**Summary:** Build the interface that accepts natural language questions from support agents and passes them to the search pipeline.
-
-**Requirements Covered:**
-- SR-REQ-001: Accept natural language questions as input
-
-**Prior Art:**
-- Read: `.gener8v/specifications/search-and-retrieval.md` — SR-REQ-001 for full requirement context
-- Read: `.gener8v/dependencies/dependency-map.md` — understand where this capability sits in the system
-
-**Acceptance Criteria:**
-- [ ] The system accepts free-text input of at least 500 characters
-- [ ] The system passes the query text to the search pipeline without modification
-- [ ] The system provides feedback that a search is in progress
-- [ ] Empty or whitespace-only queries are rejected with a clear message
-
-**Output:**
-- `src/search/query-input.{ext}` — query input module exposing a function/method that accepts a string query and returns it to the search pipeline
-- The query interface contract (function signature, input validation rules) that TICKET-003 will consume
-
-**Constraints:** None identified
-
-**Depends On:** None
-**Blocks:** TICKET-003
-
-**Size:** Small
-
----
-
-### TICKET-002: Configure search index for semantic matching
-
-**Summary:** Set up the search index to support semantic similarity matching, enabling results even when query terminology differs from document terminology.
-
-**Requirements Covered:**
-- SR-REQ-004: Handle questions even when exact terminology doesn't match
-
-**Prior Art:**
-- Read: `.gener8v/specifications/search-and-retrieval.md` — SR-REQ-004 for full requirement context
-- Read: `.gener8v/constraints/search-and-retrieval.md` — TC-001 for semantic search constraint details
-- Read: `.gener8v/dependencies/dependency-map.md` — SR-001 (Document Index shared resource) for index schema coordination with Documentation Ingestion
-
-**Acceptance Criteria:**
-- [ ] The search index supports semantic similarity queries, not just keyword matching
-- [ ] A query using synonyms or paraphrased terminology returns relevant results from documentation that uses different wording
-- [ ] Index is populated from the output of the Documentation Ingestion pipeline
-
-**Output:**
-- `src/search/index.{ext}` — index configuration and schema definition
-- `src/search/index-client.{ext}` — client module for querying the index, exposing a search function that accepts a query string and returns scored results
-- Index schema documentation or contract that Documentation Ingestion will write to and TICKET-003 will read from
-
-**Constraints:**
-- TC-001: Semantic search capability required
-
-**Known Hazards:**
-- The index schema is a shared resource (SR-001) co-owned with Documentation Ingestion — confirm the agreed schema contract exists before defining the index; do not invent a schema unilaterally, and if the contract is not yet defined, surface it rather than guessing.
-
-**Depends On:** None (index schema can be defined before ingestion is complete; integration testing requires DEP-001)
-**Blocks:** TICKET-003
-
-**Size:** Medium
-
-**Notes:** Index schema should be coordinated with the Documentation Ingestion capability (SR-001 from Dependency Map). Define the schema contract early even if full content is not yet ingested.
-
----
-
-### TICKET-003: Implement relevance ranking
-
-**Summary:** Build the ranking logic that orders search results by relevance score so the most useful documentation appears first.
-
-**Requirements Covered:**
-- SR-REQ-002: Return relevant documentation excerpts ranked by relevance
-
-**Prior Art:**
-- Read: TICKET-001 output at `src/search/query-input.{ext}` — understand the query interface contract (how queries arrive)
-- Read: TICKET-002 output at `src/search/index-client.{ext}` — understand the index query interface (how raw results are returned and what fields are available, including relevance scores)
-- Read: `.gener8v/specifications/search-and-retrieval.md` — SR-REQ-002 for full requirement context
-
-**Acceptance Criteria:**
-- [ ] Results are returned in descending order of relevance score
-- [ ] Each result includes the relevant excerpt, not the full document
-- [ ] A query with multiple matches returns them in a consistent, repeatable order
-- [ ] Results with identical relevance scores are ordered deterministically
-
-**Output:**
-- `src/search/ranking.{ext}` — ranking module that takes raw index results and returns ordered, excerpt-bearing results
-- A ranked result type/structure (with fields: excerpt, relevance score, source metadata) that TICKET-004 will extend with attribution
-
-**Constraints:** None identified
-
-**Depends On:** TICKET-001, TICKET-002
-**Blocks:** TICKET-004
-
-**Size:** Medium
-
----
-
-### TICKET-004: Add source document attribution to results
-
-**Summary:** Attach source document identification and navigation references to each search result so agents can trace results back to their origin.
-
-**Requirements Covered:**
-- SR-REQ-003: Indicate the source document for each result
-
-**Prior Art:**
-- Read: TICKET-003 output at `src/search/ranking.{ext}` — understand the ranked result structure that this ticket extends with source attribution fields
-- Read: TICKET-002 output at `src/search/index-client.{ext}` — understand what source metadata is available from the index
-- Read: `.gener8v/constraints/search-and-retrieval.md` — TC-002 for stable identifier constraint details
-- Read: `.gener8v/dependencies/dependency-map.md` — SR-002 (Source Reference Format) for the shared contract with Documentation Ingestion and Results Presentation
-
-**Acceptance Criteria:**
-- [ ] Each result displays the title of the source document
-- [ ] Each result includes a stable reference that identifies the source location
-- [ ] Source references resolve to the correct document in the source system
-- [ ] Results from different documentation sources are attributed consistently
-
-**Output:**
-- Modified `src/search/ranking.{ext}` (or new `src/search/attribution.{ext}`) — extends ranked results with source document title and stable reference link
-- The final search result type/structure consumed by the Results Presentation capability
-
-**Constraints:**
-- TC-002: Stable, addressable identifiers required from ingestion
-
-**Depends On:** TICKET-003
-**Blocks:** None
-
-**Size:** Small
-
-**Notes:** Source reference format depends on SR-002 (shared resource contract with Documentation Ingestion and Results Presentation). Verify format is defined before implementation.
-
-## Ticket Dependency Chain
-
-```
-TICKET-001 ──→ TICKET-003 ──→ TICKET-004
-TICKET-002 ──┘
-```
-
-## Suggested Ordering
-
-1. **TICKET-001** and **TICKET-002** — No dependencies, can start in parallel. TICKET-002 carries more uncertainty (semantic search setup) so starting early reduces risk.
-2. **TICKET-003** — Unblocked once query interface and index are available. Core search value is delivered here.
-3. **TICKET-004** — Final layer; adds traceability to results. Lower risk, clear scope.
-
-## Backlog Summary
-
-| Ticket | Title | Size | Depends On | Status |
-|--------|-------|------|------------|--------|
-| TICKET-001 | Implement query input interface | Small | None | Ready |
-| TICKET-002 | Configure search index for semantic matching | Medium | None | Ready |
-| TICKET-003 | Implement relevance ranking | Medium | TICKET-001, TICKET-002 | Blocked |
-| TICKET-004 | Add source document attribution to results | Small | TICKET-003 | Blocked |
-
-**Total Tickets:** 4
-**Ready to Start:** 2
-````
+The worked example decomposes the Search & Retrieval area of the Support Documentation Search System for the `support-search` change into four tickets — Priority and Value on every ticket, an NFR with its verification method on TICKET-003, Known Hazards, root-relative Output paths, and the Backlog Summary with its Priority column.
+It is at `skills/ticket-breakdown/references/example.md`.
+Read it before producing your first artifact of this kind.
 
 ---
 
 ## Integration with Other Skills
 
 **Upstream:**
-- **Planning Skill**: Provides the PRD that defines capability areas
-- **Specification Skill**: Provides the detailed requirements that are decomposed into tickets
+- **Planning Skill**: Provides the PRD that defines capability areas and the change brief (`changes/<change-slug>/change.md`) whose Priority Cut and Affected Capability Areas row scope this breakdown
+- **Specification Skill**: Provides the detailed requirements and NFRs that are decomposed into tickets, and records in the brief which IDs the change adds or modifies
 - **Constraints Skill**: Provides constraints that shape acceptance criteria and surface implementation boundaries
 - **Dependencies Skill**: Provides sequencing information and external dependency awareness
 - **Technical Design Skill**: Provides architecture decisions, component boundaries, and interface contracts that inform ticket scope and Prior Art references
+- **Defect Sweep / Code, Quality and Security Review**: Route findings to tickets — sweep findings a Verdict says to fix now (`DS-XXX`) and review findings deferred to a new ticket (qualified `<change-slug>/<report-slug>/CR-XXX` etc.) — appended to the active change's breakdown for the owning area, or to a `fix-<subsystem>` change opened via Planning
 
 **Downstream:**
-- This is the final skill in the pipeline. Output is consumed by implementation teams or further task management tooling.
+- **Delivery Skill**: implements one ticket at a time from this breakdown
+- **Orchestrate**: derives ticket status (blocked/ready/…) from each ticket's Depends On and the delivery records under the same change, orders ready tickets Must → Should → Could, and warns on a ticket with no Priority
+- **Audit Skill**: checks coverage, Prior Art/Output completeness and hazard quality
 
 ## Revisions
 
 - Re-run this skill when the source specification, constraints, dependencies, or technical design change in ways that affect ticket scope or ordering
-- When re-running, compare with the existing ticket breakdown — some tickets may survive unchanged while others need updating
+- When re-running, load the existing breakdown — tickets keep their IDs, delivered tickets are never rewritten, new tickets are added above the current maximum, obsolete undelivered tickets are marked Withdrawn
+- A new change gets its own breakdown file under `changes/<change-slug>/tickets/`; never append another change's tickets to this one, and never renumber against another file — IDs are only unique within a breakdown, which is why references from elsewhere are qualified
 - If only a single requirement changes, consider updating the affected ticket(s) rather than regenerating the entire breakdown
 - If the technical design introduces new architecture decisions, tickets may need new acceptance criteria or Prior Art references
 
 ## Notes
 
-- Generate one ticket breakdown per Specification; do not combine multiple capability areas into one breakdown
+- Generate one ticket breakdown per change and capability area; do not combine multiple capability areas — or multiple changes — into one breakdown
 - If a requirement spans multiple tickets, note this and ensure acceptance criteria collectively cover the full requirement
 - Large tickets should prompt reconsideration—can they be split without creating artificial boundaries?
 - Open questions from upstream skills that affect ticket definition should be listed; do not invent acceptance criteria to fill gaps left by unresolved questions
