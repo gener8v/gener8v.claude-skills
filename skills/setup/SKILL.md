@@ -71,7 +71,7 @@ Do **not** use this skill when:
    # gener8v pipeline state — GENERATED; do not edit by hand.
    # Regenerate with scripts/gener8v-state.py (plugin) or /orchestrate.
    generated: "[ISO 8601 timestamp]"
-   schema_version: 3
+   schema_version: 4
    stage: not_started
    prd_title: null
    system_context: false

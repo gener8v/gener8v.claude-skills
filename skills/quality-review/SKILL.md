@@ -185,7 +185,7 @@ Do not flag performance concerns without considering the actual usage context. A
 
 13. **Draft Findings and Write the Report**: Create findings with category, severity, root-relative location, and specific recommendations. Write the full report to `.gener8v/changes/<change-slug>/reviews/` now, every finding `Open`, verdict provisional. *(End of the findings phase — when run as the `quality-reviewer` agent, stop here and return the report path, verdict and counts.)*
 
-14. **Present to User**: Share findings starting with Critical, then Concerns, then Suggestions. Work through interactive resolution — fix, defer or dismiss — updating each finding in the report as it is decided. A finding deferred to a named ticket (`Deferred → TICKET-NNN`) also gets a Known Hazard appended to that ticket in its breakdown file, so the implementer sees it (`CONVENTIONS.md` §2).
+14. **Present to User**: Share findings starting with Critical, then Concerns, then Suggestions. Work through interactive resolution — fix, defer or dismiss — updating each finding in the report as it is decided. A finding deferred to a named ticket (`Deferred → TICKET-NNN`) also gets a Known Hazard appended to that ticket's file — `.gener8v/changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md` — so the implementer sees it (`CONVENTIONS.md` §2).
 
 15. **Apply Approved Changes**: Update code files for findings the user approves, re-run the delivery record's Verification Run, and append each change to the delivery record's `## Post-Review Amendments`.
 

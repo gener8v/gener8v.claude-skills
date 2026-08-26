@@ -19,7 +19,7 @@ Reconciliation comes first because a ticket — however well-specified — encod
 ## When to Use
 
 Use this skill when:
-- A ticket from `.gener8v/changes/<change-slug>/tickets/` is ready for implementation (no unresolved blockers in its Depends On field)
+- A ticket file under `.gener8v/changes/<change-slug>/tickets/<capability-area-slug>/` is ready for implementation (no unresolved blockers in its Depends On field)
 - The user wants to implement a specific ticket
 - All predecessor tickets (from the Depends On field) have been delivered
 - The team is ready to move from planning artifacts to working code
@@ -28,8 +28,9 @@ Use this skill when:
 
 **Source:** A single ticket from a ticket breakdown, plus all pipeline artifacts referenced in the ticket's Prior Art
 **Read from:**
-- Ticket breakdown: `.gener8v/changes/[change-slug]/tickets/[capability-area-slug].md`
-- The specific ticket within that file (identified by TICKET-XXX)
+- Ticket: `.gener8v/changes/[change-slug]/tickets/[capability-area-slug]/TICKET-XXX.md` — one ticket, one file; there is no extraction step. Its `**Change:**`, `**Capability Area:**` and `**Specification:**` header lines confirm the target
+- Backlog: `.gener8v/changes/[change-slug]/tickets/[capability-area-slug]/backlog.md` — the dependency chain and suggested ordering this ticket sits in
+- Predecessor tickets (from the Depends On field): sibling `TICKET-XXX.md` files in the same directory
 - Change brief: `.gener8v/changes/[change-slug]/change.md` — its Status (Draft or Approved) and Priority Cut
 - Prior Art as declared in the ticket (pipeline documents and predecessor ticket outputs)
 - Technical Design: `.gener8v/technical-design/[capability-area-slug].md` or `.gener8v/technical-design/system-design.md` (if available)
@@ -40,11 +41,12 @@ Use this skill when:
 - Predecessor review reports: `.gener8v/changes/[change-slug]/reviews/*-{code,quality,security}-review.md` for every ticket in Depends On and for any predecessor whose Files Produced overlap this ticket's Output — findings deferred "to the next ticket" and accepted risks live there. Predecessors normally sit under the same change; a dependency on an earlier change's ticket is read from that change's directory
 - Existing codebase files referenced in Prior Art
 
-**Expects:** A ticket with Summary, Priority, Value, Requirements Covered, Prior Art, Acceptance Criteria, Output, Constraints, and Size fields. Predecessor tickets in the Depends On field should have delivery records.
+**Expects:** A ticket file opening with `# TICKET-XXX: title` and the three header lines, then Summary, Priority, Value, Requirements Covered, Prior Art, Acceptance Criteria, Output, Constraints, and Size fields. Predecessor tickets in the Depends On field should have delivery records.
 
 **If input is missing or malformed:**
 - If several changes are active and none is named, ask which one before reading anything
-- If no ticket breakdown exists for the target capability area under the change, stop and recommend running the Ticket Breakdown skill first (`ticket-breakdown <area> for <change-slug>`)
+- If no `tickets/<capability-area-slug>/TICKET-XXX.md` exists for the target under the change, stop and recommend running the Ticket Breakdown skill first (`ticket-breakdown <area> for <change-slug>`)
+- Legacy: if the area's tickets exist only as a per-area file `tickets/<capability-area-slug>.md` holding `### TICKET-NNN:` sections, recommend `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" split-tickets` and deliver from the resulting ticket file — never from the legacy shape
 - If predecessor tickets have not been delivered, warn the user — the ticket's Prior Art may reference files that do not yet exist
 - If technical design or constraints are missing, proceed but note the gap — implementation decisions may lack architectural context
 
@@ -241,9 +243,9 @@ Only implement what this ticket specifies. Do not refactor adjacent code, add un
 
 ## Process
 
-1. **Locate the Ticket**: Resolve the change — the one named in the argument, else the single active change, else ask. Read `.gener8v/changes/<change-slug>/tickets/<capability-area-slug>.md` and extract the target ticket. Confirm the ticket ID, capability area and change. Read the change brief for its Status and Priority Cut; a delivery started from a `Draft` brief proceeds, and the record's `**Change:**` line says so (Audit raises a Warning, never a block).
+1. **Locate the Ticket**: Resolve the change — the one named in the argument, else the single active change, else ask. Open `.gener8v/changes/<change-slug>/tickets/<capability-area-slug>/TICKET-XXX.md` — the whole ticket is that one file; there is nothing to extract. Confirm that its `**Change:**`, `**Capability Area:**` and `**Specification:**` header lines match the target. Read the sibling `backlog.md` for the dependency chain and suggested ordering. Read the change brief for its Status and Priority Cut; a delivery started from a `Draft` brief proceeds, and the record's `**Change:**` line says so (Audit raises a Warning, never a block).
 
-2. **Check Prerequisites**: Verify that all tickets listed in the Depends On field have delivery records in `.gener8v/changes/<change-slug>/delivery/`. If any are missing, warn the user that Prior Art references may point to files that do not exist.
+2. **Check Prerequisites**: Verify that all tickets listed in the Depends On field — sibling `TICKET-XXX.md` files in the same directory — have delivery records in `.gener8v/changes/<change-slug>/delivery/`. If any are missing, warn the user that Prior Art references may point to files that do not exist.
 
 3. **Read Prior Art**: Follow every item in the ticket's Prior Art section. Read pipeline documents (specifications, constraints, technical design). Read predecessor delivery records and the actual code files they produced. Read system context if available.
 
@@ -284,7 +286,7 @@ Only implement what this ticket specifies. Do not refactor adjacent code, add un
 
 ## Example
 
-A full delivery of `support-search/search-and-retrieval/TICKET-001` (query input, SR-REQ-001..003): the ticket as read from the breakdown, the plan presented for approval with its repository and approval line, and the finished record — reconciliation, verification run, criteria verification, a DEL decision and `@spec` annotations.
+A full delivery of `support-search/search-and-retrieval/TICKET-001` (query input, SR-REQ-001..003): the ticket as read from its own file, the plan presented for approval with its repository and approval line, and the finished record — reconciliation, verification run, criteria verification, a DEL decision and `@spec` annotations.
 
 It is at `skills/delivery/references/example.md`.
 Read it before producing your first artifact of this kind.
@@ -295,7 +297,7 @@ Read it before producing your first artifact of this kind.
 
 **Upstream:**
 - **Planning Skill**: Opens the change whose brief (`changes/<change-slug>/change.md`) scopes the ticket — its Priority Cut and approval status
-- **Ticket Breakdown Skill**: Provides the ticket that defines what to implement — summary, priority, value, requirements (REQ and NFR), Prior Art, acceptance criteria, output, constraints, and dependencies
+- **Ticket Breakdown Skill**: Provides the ticket file that defines what to implement — summary, priority, value, requirements (REQ and NFR), Prior Art, acceptance criteria, output, constraints, and dependencies — and the area's `backlog.md` for ordering
 - **Technical Design Skill**: Provides architecture decisions (AD-XXX) that guide implementation choices
 - **Specification Skill**: Provides requirement detail referenced in Prior Art
 - **Constraints Skill**: Provides constraints referenced in the ticket

@@ -31,12 +31,12 @@ Use this skill when:
 - Dependency Map: `.gener8v/dependencies/dependency-map.md`
 - Technical Design: `.gener8v/technical-design/*.md`
 - Change briefs: `.gener8v/changes/*/change.md`
-- Tickets: `.gener8v/changes/*/tickets/*.md`
+- Tickets: `.gener8v/changes/*/tickets/*/TICKET-*.md` — one ticket, one file — plus each directory's `backlog.md` (overview, dependency chain, suggested ordering)
 - Delivery Records: `.gener8v/changes/*/delivery/*.md`
 - Code Reviews: `.gener8v/changes/*/reviews/*-code-review.md`
 - Quality Reviews: `.gener8v/changes/*/reviews/*-quality-review.md`
 - Security Reviews: `.gener8v/changes/*/reviews/*-security-review.md`
-- Legacy layout: a project whose `tickets/`, `delivery/` and `reviews/*-review.md` still sit at the top level of `.gener8v/` is read as the pseudo-change `initial` — audit it as one change and recommend the one-time migration from `CONVENTIONS.md` §2
+- Legacy layout: a project whose `tickets/`, `delivery/` and `reviews/*-review.md` still sit at the top level of `.gener8v/` is read as the pseudo-change `initial` — audit it as one change and recommend the one-time migration from `CONVENTIONS.md` §2. Legacy ticket shape: a per-area ticket *file* (`tickets/<area-slug>.md` holding `### TICKET-NNN:` sections) is still read — audit it as the breakdown it is and recommend `gener8v-state.py split-tickets`
 - Assessments: `.gener8v/reviews/*-owasp-top10-assessment.md`, `*-owasp-llm-top10-assessment.md`, `*-architecture-assessment.md`
 - Flow maps: `.gener8v/flows/*.md`; Sweeps: `.gener8v/sweeps/*-sweep.md`; Brownfield checkpoints: `.gener8v/brownfield/*.md`
 - Prior audits: `.gener8v/audits/*.md` (to carry deferred findings forward rather than re-raise them)
@@ -171,7 +171,7 @@ The full check lists live in `references/checks.md` — open it at Process step 
 - **Constraints** — rationale and impact, categories, interactions, no requirements (or NFR targets) masquerading as constraints, Architect approval
 - **Dependencies** — direction/type/nature, no cycles, graph matches prose, critical path, shared resources
 - **Technical Design** — AD-XXX completeness, requirement and NFR citations, constraint compliance, repository named per component in a workspace, Architect approval
-- **Tickets** — scope matches the brief, Priority and Value present, Prior Art/Output root-relative, Known Hazards, acceptance criteria and NFR verification, Backlog Summary Priority column, ordering respects priority
+- **Tickets** — one `TICKET-NNN.md` per ticket with the three header lines, `backlog.md` present, no ticket living only as a heading in another file; scope matches the brief, Priority and Value present, Prior Art/Output root-relative, Known Hazards, acceptance criteria and NFR verification, `backlog.md` Backlog Summary Priority column, ordering respects priority
 - **Delivery Record** — acceptance criteria, Files Produced exist and are root-relative, plan approved by Engineer, repository and verify commands, `@spec`, Status/Verification vocabularies, Pre-Flight, Verification Run with NFR checks, Post-Review Amendments
 - **Code Review** — acceptance and requirement (incl. NFR) coverage, `@spec` coverage, finding traceability, verdict vocabulary, deferrals matched by Known Hazards
 - **Quality Review** — all five categories rated, Test Coverage cites commands, verdict vocabulary

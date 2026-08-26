@@ -211,10 +211,11 @@ opens a `fix-<subsystem-slug>` change for the tickets. It lives at `references/e
 subsystem.
 
 **Downstream:**
-- **Ticket Breakdown**: findings the Verdict says to fix now become tickets (cite `DS-XXX`) in
-  `changes/<change-slug>/tickets/<area-slug>.md` of the active change — the owning capability area's
-  breakdown, or a breakdown for the subsystem when the project has no capability areas. When several
-  changes are active, the user names one. A fix is then a normal Delivery with its three reviews.
+- **Ticket Breakdown**: findings the Verdict says to fix now become tickets (cite `DS-XXX`), each a new
+  `TICKET-NNN.md` appended to `changes/<change-slug>/tickets/<area-slug>/` of the active change — IDs
+  above the current maximum in that directory — the owning capability area's breakdown, or a breakdown
+  for the subsystem when the project has no capability areas. When several changes are active, the user
+  names one. A fix is then a normal Delivery with its three reviews.
 - **Planning**: when no change is active, open a new change `fix-<subsystem-slug>` via Planning first
   (Why: the sweep; Outcome: the findings closed; Priority Cut from the Verdict), then break the findings
   down under it.

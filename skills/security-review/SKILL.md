@@ -30,6 +30,7 @@ Use this skill when:
 **Source:** Delivered code files, plus security-relevant pipeline artifacts
 **Read from:**
 - Delivery record: `.gener8v/changes/<change-slug>/delivery/<area-slug>-ticket-NNN-delivery.md` (for the file list)
+- Ticket: `.gener8v/changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md` (one ticket, one file — for its Constraints and Known Hazards; also where a deferred finding's Known Hazard is appended)
 - Actual code files listed in the delivery record's "Files Produced" section
 - Constraints: `.gener8v/constraints/prd.md` and `.gener8v/constraints/<area-slug>.md` (whichever exist — compliance constraints CC-XXX at either level apply)
 - Conventions: `.gener8v/CONVENTIONS.md`
@@ -177,7 +178,7 @@ Logging that includes PII, credentials, session tokens, full request/response bo
 
 2. **Read All Code**: Read every delivered code file thoroughly.
 
-3. **Read Security Context**: Read constraints (for CC-XXX compliance requirements), technical design (for auth/authz patterns and security-related architecture decisions), and system context (for deployment environment).
+3. **Read Security Context**: Read the ticket file (for its Constraints and any Known Hazards already recorded), constraints (for CC-XXX compliance requirements), technical design (for auth/authz patterns and security-related architecture decisions), and system context (for deployment environment).
 
 4. **Check Input Validation**: Examine all entry points — function parameters from external input, API endpoints, form handlers, file uploads, URL parameters, headers. Check for:
    - Missing validation on user-controlled input
@@ -222,7 +223,7 @@ Logging that includes PII, credentials, session tokens, full request/response bo
 
 12. **Draft Findings and Write the Report**: Create findings with severity, OWASP reference, category, attack scenario (for Medium+), and specific remediation guidance. Write the full report to `.gener8v/changes/<change-slug>/reviews/` now, every finding `Open`, verdict provisional. *(End of the findings phase — when run as the `security-reviewer` agent, stop here and return the report path, verdict and counts.)*
 
-13. **Present to User**: Share findings starting with Critical, then High, then Medium, then Low, then Informational. For Critical and High findings, emphasize the attack scenario and impact. Work through interactive resolution — the user may fix, defer, or accept risk — updating each finding in the report as it is decided. A finding deferred to a named ticket (`Deferred → TICKET-NNN`) also gets a Known Hazard appended to that ticket in its breakdown file, so the implementer sees it (`CONVENTIONS.md` §2). When a risk is accepted, write the `**Risk accepted by:** Security — <name>, YYYY-MM-DD` line and the rationale on the finding at that moment, and mark the Resolution Log row `Risk Accepted: Yes`.
+13. **Present to User**: Share findings starting with Critical, then High, then Medium, then Low, then Informational. For Critical and High findings, emphasize the attack scenario and impact. Work through interactive resolution — the user may fix, defer, or accept risk — updating each finding in the report as it is decided. A finding deferred to a named ticket (`Deferred → TICKET-NNN`) also gets a Known Hazard appended to that ticket's own file — `.gener8v/changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md` — so the implementer sees it (`CONVENTIONS.md` §2). When a risk is accepted, write the `**Risk accepted by:** Security — <name>, YYYY-MM-DD` line and the rationale on the finding at that moment, and mark the Resolution Log row `Risk Accepted: Yes`.
 
 14. **Apply Approved Remediations**: Update code files for findings the user approves, re-run the delivery record's Verification Run, and append each change to the delivery record's `## Post-Review Amendments`.
 
@@ -237,6 +238,7 @@ A worked example — the findings-phase report for Search & Retrieval TICKET-002
 ## Integration with Other Skills
 
 **Upstream:**
+- **Ticket Breakdown Skill**: Provides the ticket file (`changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md`) — the review reads its Constraints and Known Hazards, and appends a Known Hazard to it when a finding is deferred there
 - **Delivery Skill**: Provides the delivery record (`changes/<change-slug>/delivery/…`, with the file list) and the delivered code to review
 - **Constraints Skill**: Provides compliance constraints (CC-XXX) for mandatory security requirements
 - **Technical Design Skill**: Provides security-related architecture decisions (auth patterns, data protection approach)

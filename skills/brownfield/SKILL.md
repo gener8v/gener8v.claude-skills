@@ -225,7 +225,7 @@ Read it before producing your first artifact of this kind.
 - **Dependencies Skill**: Can map dependencies between the capability areas identified here
 - **Technical Design Skill**: Can document the architecture that already exists (or use the system context as a starting point)
 - **Planning Skill**: Opens the first change on the onboarded system — amends `prd.md` in place and writes `changes/<change-slug>/change.md`
-- **Ticket Breakdown Skill**: Can decompose specifications for new feature work, inside the change Planning opened (`changes/<change-slug>/tickets/<area-slug>.md`)
+- **Ticket Breakdown Skill**: Can decompose specifications for new feature work, inside the change Planning opened (`changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md` — one ticket, one file — plus `tickets/<area-slug>/backlog.md`)
 - **Delivery Skill**: New tickets referencing brownfield specifications flow through standard delivery, using the verify commands from `context.md`'s Repositories table
 - **Code Review Skill**: Can verify `@spec` annotations against specifications
 - **Orchestrate Skill**: Reads the artifacts produced here to determine pipeline status
@@ -237,7 +237,7 @@ Read it before producing your first artifact of this kind.
 ## Revisions
 
 - If the codebase changes significantly after brownfield onboarding, re-run this skill (it resumes from the checkpoints; delete `brownfield/capability-areas.md` to redo the grouping) — existing requirement IDs are preserved and new ones allocated above the maximum
-- The first *change* to an onboarded codebase is `/planning`, which amends the PRD in place (it never overwrites the as-is baseline) and opens `changes/<change-slug>/change.md` → Specification (amending the area's living spec, tagging what the change adds) → Ticket Breakdown (`changes/<change-slug>/tickets/<area-slug>.md`) → Delivery
+- The first *change* to an onboarded codebase is `/planning`, which amends the PRD in place (it never overwrites the as-is baseline) and opens `changes/<change-slug>/change.md` → Specification (amending the area's living spec, tagging what the change adds) → Ticket Breakdown (one `changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md` per ticket, plus `backlog.md`) → Delivery
 - New features added through the standard pipeline (Planning → Specification → ... → Delivery) do not require re-running this skill — they produce their own specifications
 - `@spec` annotations should be maintained as code evolves — when code moves, annotations move with it
 - If a specification becomes inaccurate due to code changes, update the specification and its `@spec Coverage` section

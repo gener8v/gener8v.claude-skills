@@ -30,10 +30,21 @@ With constraints TC-001 (semantic search needed for SR-REQ-006) and TC-002 (stab
 
 ### Output
 
-Written to `.gener8v/changes/support-search/tickets/search-and-retrieval.md`:
+Written to `.gener8v/changes/support-search/tickets/search-and-retrieval/` — five files. The four ticket files are written first, each as it is finished; `backlog.md` is written last.
+
+```
+.gener8v/changes/support-search/tickets/search-and-retrieval/
+  backlog.md
+  TICKET-001.md
+  TICKET-002.md
+  TICKET-003.md
+  TICKET-004.md
+```
+
+#### `backlog.md`
 
 ````markdown
-# Search & Retrieval — Ticket Breakdown
+# Search & Retrieval — Backlog (support-search)
 
 ## Overview
 
@@ -41,18 +52,47 @@ Four tickets decomposed from the Search & Retrieval requirements the `support-se
 
 ## Source Context
 
-**Change:** Support search (`changes/support-search/change.md`)
-**Specification:** Search & Retrieval Specification
-**Constraints Analysis:** Search & Retrieval Constraints Analysis
-**Dependency Map:** Support Documentation Search System Dependency Map
-**Technical Design:** Search & Retrieval Technical Design
+**Specification:** Search & Retrieval Specification · **Constraints Analysis:** Search & Retrieval Constraints Analysis · **Dependency Map:** Support Documentation Search System Dependency Map · **Technical Design:** Search & Retrieval Technical Design
+**Change brief:** changes/support-search/change.md (Priority Cut applied)
 
-## Tickets
+## Ticket Dependency Chain
 
-### TICKET-001: Implement query input interface
+```
+TICKET-001 ──→ TICKET-003 ──→ TICKET-004
+TICKET-002 ──┘
+```
+
+## Suggested Ordering
+
+1. **TICKET-001** and **TICKET-002** — Both Must, no dependencies, can start in parallel. TICKET-002 carries more uncertainty (semantic index setup, RES-001 contract) so starting early reduces risk.
+2. **TICKET-003** — Must; unblocked once query interface and index are available. Core search value and the latency target are delivered here.
+3. **TICKET-004** — Should; final layer, adds traceability to results. Lower risk, clear scope, and correctly last: nothing Must depends on it.
+
+## Backlog Summary
+
+| Ticket | Title | Priority | Size | Depends On | Status |
+|--------|-------|----------|------|------------|--------|
+| TICKET-001 | Implement query input interface | Must | Small | None | Ready |
+| TICKET-002 | Configure search index for semantic matching | Must | Medium | None | Ready |
+| TICKET-003 | Implement relevance ranking | Must | Medium | TICKET-001, TICKET-002 | Blocked |
+| TICKET-004 | Add source document attribution to results | Should | Small | TICKET-003 | Blocked |
+
+**Total Tickets:** 4
+**Ready to Start:** 2
+
+*Status here is as of this breakdown. Live status (delivered, reviewed, done) is derived from delivery records and reviews into `.gener8v/pipeline-state.yaml`; this table is not updated as tickets progress.*
+````
+
+#### `TICKET-001.md`
+
+```markdown
+# TICKET-001: Implement query input interface
+
+**Change:** support-search
+**Capability Area:** Search & Retrieval (search-and-retrieval)
+**Specification:** specifications/search-and-retrieval.md
 
 **Summary:** Build the interface that accepts natural language questions from support agents, validates them, and passes them to the search pipeline.
-
 **Priority:** Must
 **Value:** A support agent can type a question in their own words and have it accepted for search.
 
@@ -84,13 +124,18 @@ Four tickets decomposed from the Search & Retrieval requirements the `support-se
 **Blocks:** TICKET-003
 
 **Size:** Small
+```
 
----
+#### `TICKET-002.md`
 
-### TICKET-002: Configure search index for semantic matching
+```markdown
+# TICKET-002: Configure search index for semantic matching
+
+**Change:** support-search
+**Capability Area:** Search & Retrieval (search-and-retrieval)
+**Specification:** specifications/search-and-retrieval.md
 
 **Summary:** Set up the search index to support semantic similarity matching, enabling results even when query terminology differs from document terminology, across every ingested source.
-
 **Priority:** Must
 **Value:** A question phrased differently from the documentation still finds the right page, whichever source it came from.
 
@@ -128,13 +173,18 @@ Four tickets decomposed from the Search & Retrieval requirements the `support-se
 **Size:** Medium
 
 **Notes:** Index schema should be coordinated with the Documentation Ingestion capability (RES-001 from Dependency Map). Define the schema contract early even if full content is not yet ingested.
+```
 
----
+#### `TICKET-003.md`
 
-### TICKET-003: Implement relevance ranking
+```markdown
+# TICKET-003: Implement relevance ranking
+
+**Change:** support-search
+**Capability Area:** Search & Retrieval (search-and-retrieval)
+**Specification:** specifications/search-and-retrieval.md
 
 **Summary:** Build the ranking logic that orders search results by relevance score so the most useful documentation appears first, within the latency target.
-
 **Priority:** Must
 **Value:** The most relevant excerpt is at the top of the list, and the answer arrives fast enough to use mid-call.
 
@@ -170,13 +220,18 @@ Four tickets decomposed from the Search & Retrieval requirements the `support-se
 **Blocks:** TICKET-004
 
 **Size:** Medium
+```
 
----
+#### `TICKET-004.md`
 
-### TICKET-004: Add source document attribution to results
+```markdown
+# TICKET-004: Add source document attribution to results
+
+**Change:** support-search
+**Capability Area:** Search & Retrieval (search-and-retrieval)
+**Specification:** specifications/search-and-retrieval.md
 
 **Summary:** Attach source document identification and navigation references to each search result so agents can trace results back to their origin.
-
 **Priority:** Should
 **Value:** An agent can see which document an excerpt came from and open it, whichever source it lives in.
 
@@ -214,33 +269,6 @@ Four tickets decomposed from the Search & Retrieval requirements the `support-se
 **Size:** Small
 
 **Notes:** Source reference format depends on RES-002 (shared resource contract with Documentation Ingestion and Results Presentation). Verify format is defined before implementation.
-
-## Ticket Dependency Chain
-
-```
-TICKET-001 ──→ TICKET-003 ──→ TICKET-004
-TICKET-002 ──┘
 ```
 
-## Suggested Ordering
-
-1. **TICKET-001** and **TICKET-002** — Both Must, no dependencies, can start in parallel. TICKET-002 carries more uncertainty (semantic index setup, RES-001 contract) so starting early reduces risk.
-2. **TICKET-003** — Must; unblocked once query interface and index are available. Core search value and the latency target are delivered here.
-3. **TICKET-004** — Should; final layer, adds traceability to results. Lower risk, clear scope, and correctly last: nothing Must depends on it.
-
-## Backlog Summary
-
-| Ticket | Title | Priority | Size | Depends On | Status |
-|--------|-------|----------|------|------------|--------|
-| TICKET-001 | Implement query input interface | Must | Small | None | Ready |
-| TICKET-002 | Configure search index for semantic matching | Must | Medium | None | Ready |
-| TICKET-003 | Implement relevance ranking | Must | Medium | TICKET-001, TICKET-002 | Blocked |
-| TICKET-004 | Add source document attribution to results | Should | Small | TICKET-003 | Blocked |
-
-**Total Tickets:** 4
-**Ready to Start:** 2
-
-*Status here is as of this breakdown. Live status (delivered, reviewed, done) is derived from delivery records and reviews into `.gener8v/pipeline-state.yaml`; this table is not updated as tickets progress.*
-````
-
-From any other document these tickets are referenced qualified — `support-search/search-and-retrieval/TICKET-003` — because TICKET-001 in another change's breakdown is a different ticket.
+From any other document these tickets are referenced qualified — `support-search/search-and-retrieval/TICKET-003` — because `TICKET-001.md` in another change's `tickets/<area-slug>/` directory is a different ticket. Delivery reads one ticket file and `backlog.md` for ordering; when SR-NFR-002 gets its ticket, it is written as `TICKET-005.md` in this directory and `backlog.md` is regenerated — the four existing files are not touched.

@@ -80,7 +80,11 @@ These apply when auditing any individual artifact.
 - [ ] Assumptions are documented and falsifiable
 - [ ] Source Context carries `**Status:**` and `**Approved by:**` (Architect, or `pending`)
 
-### Ticket Checks (`changes/<change-slug>/tickets/<area-slug>.md`)
+### Ticket Checks (`changes/<change-slug>/tickets/<area-slug>/`)
+- [ ] Each ticket is its own `TICKET-NNN.md` opening with `# TICKET-NNN: title` and the three header lines (`**Change:**`, `**Capability Area:**`, `**Specification:**`) that name the directory it sits in
+- [ ] `backlog.md` exists in the directory (Overview, Source Context, Ticket Dependency Chain, Suggested Ordering, Backlog Summary)
+- [ ] No ticket exists only as a heading in another file — a per-area `tickets/<area-slug>.md` holding `### TICKET-NNN:` sections is the legacy shape; recommend `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" split-tickets`
+- [ ] Ticket IDs in the directory are contiguous from `TICKET-001` and never reused; a withdrawn ticket keeps its file with `**Status:** Withdrawn` at the top
 - [ ] Every requirement the change brief adds or modifies for this area appears in at least one ticket (the whole specification only when the brief says so)
 - [ ] Every ticket has `**Priority:**` (`Must` / `Should` / `Could`) and `**Value:**` (one sentence) directly under Summary
 - [ ] Every ticket has a Prior Art section pointing to specific files
@@ -92,13 +96,13 @@ These apply when auditing any individual artifact.
 - [ ] NFR IDs in Requirements Covered are matched by a verification method under Acceptance Criteria
 - [ ] No ticket is sized Large without a note on whether it should be split
 - [ ] Dependency chain is acyclic
-- [ ] Backlog summary table is present, accurate, and has a Priority column
+- [ ] `backlog.md`'s Backlog Summary table lists every `TICKET-*.md` in the directory (as of the breakdown — live status is `pipeline-state.yaml`'s), agrees with the ticket files, and has a Priority column
 - [ ] Suggested Ordering never places a `Could` ticket before a `Must` ticket unless a dependency forces it
-- [ ] Ticket dependency chain visual matches the Depends On / Blocks fields
+- [ ] `backlog.md`'s Ticket Dependency Chain visual matches the Depends On / Blocks fields in the ticket files
 - [ ] When a Technical Design exists, tickets reference relevant Architecture Decisions
 
 ### Delivery Record Checks (`changes/<change-slug>/delivery/<area-slug>-ticket-NNN-delivery.md`)
-- [ ] Ticket reference is valid (ticket exists in the ticket breakdown under the same change)
+- [ ] Ticket reference is valid (`tickets/<area-slug>/TICKET-NNN.md` exists under the same change)
 - [ ] All acceptance criteria from the ticket are addressed (marked satisfied or explicitly unsatisfied with reason)
 - [ ] Files Produced lists specific, root-relative file paths
 - [ ] Every file listed in Files Produced actually exists in the codebase
@@ -122,7 +126,7 @@ These apply when auditing any individual artifact.
 - [ ] `@spec` Annotation Coverage table is present and shows all requirements annotated (or missing annotations flagged as findings)
 - [ ] All CR-XXX findings have traceability to a pipeline artifact (REQ-XXX, NFR-XXX, AD-XXX, constraint ID, or acceptance criterion) and root-relative Location fields
 - [ ] Verdict uses the shared vocabulary (Approved / Approved with Notes / Changes Required) and every finding has a Status before the verdict is anything but provisional
-- [ ] Critical findings are resolved or have documented rationale for deferral; a finding `Deferred → TICKET-NNN` has a matching Known Hazard on that ticket
+- [ ] Critical findings are resolved or have documented rationale for deferral; a finding `Deferred → TICKET-NNN` has a matching Known Hazard in that ticket's `TICKET-NNN.md`
 
 ### Quality Review Checks
 - [ ] All five quality assessment categories (Code Organization, Readability, Error Handling, Test Coverage, Observability & Operability) are rated
@@ -167,14 +171,14 @@ These apply when auditing across the pipeline.
 - [ ] Every specification has a corresponding constraints analysis (or explicit deferral)
 - [ ] The dependency map covers all capability areas in the PRD
 - [ ] Technical design exists for capability areas with non-trivial architecture (or explicit deferral)
-- [ ] Every area a change brief lists under Affected Capability Areas has a ticket breakdown at `changes/<change-slug>/tickets/<area-slug>.md` once its Requirements cell is filled (a cell still `(pending specification)` is a Gap against Specification, not Ticket Breakdown)
+- [ ] Every area a change brief lists under Affected Capability Areas has a ticket breakdown directory at `changes/<change-slug>/tickets/<area-slug>/` (a `backlog.md` and at least one `TICKET-*.md`) once its Requirements cell is filled (a cell still `(pending specification)` is a Gap against Specification, not Ticket Breakdown)
 
 ### Change Traceability
 - [ ] Every directory under `changes/` has a `change.md`; every change brief's `**Slug:**` matches its directory
 - [ ] The Requirements column of the brief's Affected Capability Areas matches the specification's change tags: every ID tagged `change: <change-slug>` in a living specification is listed in the brief's row for that area, and every ID the brief lists carries that tag in the specification (Adds ↔ new tag, Modifies ↔ amended tag, Withdraws ↔ `**Status:** Withdrawn`)
 - [ ] A ticket breakdown covers only requirements its change brief adds or modifies for that area, unless the brief says otherwise
 - [ ] Qualified references across documents carry the change segment (`<change-slug>/<area-slug>/TICKET-003`, `<change-slug>/<area-slug>-ticket-003-code-review/CR-002`)
-- [ ] A project whose `tickets/`, `delivery/` and `reviews/*-review.md` still sit at the top level is read as the pseudo-change `initial` — raise a Suggestion to migrate once (`CONVENTIONS.md` §2); a *new* artifact written to a legacy location is a Gap
+- [ ] A project whose `tickets/`, `delivery/` and `reviews/*-review.md` still sit at the top level is read as the pseudo-change `initial` — raise a Suggestion to migrate once (`CONVENTIONS.md` §2); a legacy per-area ticket *file* (`tickets/<area-slug>.md`) likewise earns a Suggestion to run `gener8v-state.py split-tickets`; a *new* artifact written to a legacy location or legacy shape is a Gap
 
 ### Approvals
 - [ ] Tickets were cut from an `Approved` specification — tickets under a `Draft` specification are a Warning, never a block
@@ -182,7 +186,7 @@ These apply when auditing across the pipeline.
 - [ ] Every `**Approved by:**` / `**Plan approved by:**` / `**Risk accepted by:**` line names a role from `CONVENTIONS.md` §7 and a date; `approvals_pending` in `pipeline-state.yaml` matches the count of `pending` `**Approved by:**` lines on the artifacts the script reads (PRD, specifications, per-area constraints and technical designs, change briefs)
 
 ### Traceability
-- [ ] Every [PREFIX]-REQ-XXX in specifications traces to at least one ticket
+- [ ] Every [PREFIX]-REQ-XXX in specifications traces to at least one ticket (glob `changes/*/tickets/*/TICKET-*.md`)
 - [ ] Every [PREFIX]-NFR-XXX in specifications traces to at least one ticket (a Warning, not a Gap — some NFRs are verified system-wide)
 - [ ] Requirement ID prefixes are unique across specifications (no two specs use the same prefix; none is a reserved prefix or segment from `CONVENTIONS.md` §3)
 - [ ] Constraint IDs referenced in tickets exist in the constraints analysis (PRD-level or area-level); references across documents are qualified by source (`prd/TC-001`)
@@ -191,7 +195,7 @@ These apply when auditing across the pipeline.
 - [ ] Ticket Prior Art paths reference files that earlier tickets declare in their Output sections
 
 ### Delivery Traceability
-- [ ] Every ticket in a completed ticket breakdown has a corresponding delivery record under the same change
+- [ ] Every `TICKET-*.md` under `changes/<change-slug>/tickets/<area-slug>/` (not marked Withdrawn) has a corresponding delivery record under the same change
 - [ ] Delivery record file paths (Files Produced) match the ticket's Output section (or deviations are documented)
 - [ ] Predecessor tickets referenced in Depends On have delivery records before dependent tickets are delivered
 - [ ] DEL-XXX and SEC/CR/QR-XXX references made outside their home document are qualified (`TICKET-003/DEL-001`, `<change-slug>/<report-slug>/SEC-002`) — numbering restarts per document by design
@@ -203,7 +207,7 @@ These apply when auditing across the pipeline.
 - [ ] Code review acceptance criteria table matches the source ticket's acceptance criteria
 - [ ] Security review compliance findings trace to constraint IDs (CC-XXX) that exist in the constraints analysis
 - [ ] Review verdicts are consistent with `pipeline-state.yaml`: a `Changes Required` verdict from any review leaves the ticket `changes_required`, and a ticket is `done` only when Delivered, verified, and approved-or-deferred by every review
-- [ ] Findings a review deferred to a named ticket appear as Known Hazards on that ticket, and the ticket's delivery record lists them as carried findings
+- [ ] Findings a review deferred to a named ticket appear as Known Hazards in that ticket's `TICKET-NNN.md`, and the ticket's delivery record lists them as carried findings
 
 ### Root-Relative Paths
 - [ ] Every code path in every artifact — ticket Output and Prior Art, delivery Files Produced, `@spec Coverage` locations, review Location fields — is relative to the workspace root, and in a workspace begins with a directory listed in `context.md`'s Repositories table
@@ -213,14 +217,14 @@ These apply when auditing across the pipeline.
 - [ ] Open questions are not duplicated across documents
 - [ ] Open questions resolved in downstream documents are marked resolved upstream
 - [ ] Constraint impacts reference requirement IDs that exist in the corresponding specification
-- [ ] No orphaned pipeline artifacts (a specification, constraints file, ticket breakdown or delivery record that no PRD area, change brief or ticket refers to; a `changes/<change-slug>/` directory with no brief). Standalone artifacts — `flows/`, `sweeps/`, `reviews/*-assessment.md`, `brownfield/`, `CONVENTIONS.md`, `pipeline-state.yaml`, `runs.jsonl` — are expected and are not orphans
+- [ ] No orphaned pipeline artifacts (a specification, constraints file, ticket breakdown directory or delivery record that no PRD area, change brief or ticket refers to; a `changes/<change-slug>/` directory with no brief). Standalone artifacts — `flows/`, `sweeps/`, `reviews/*-assessment.md`, `brownfield/`, `CONVENTIONS.md`, `pipeline-state.yaml`, `runs.jsonl` — are expected and are not orphans
 
 ### Staleness
 - [ ] Specifications still align with the current PRD capability area descriptions
 - [ ] Constraints analyses reflect the current specification requirements (not outdated IDs)
 - [ ] Tickets reference requirement IDs that still exist in the current specification
 - [ ] Technical design decisions are consistent with current constraints
-- [ ] Delivery records reference tickets that still exist in the current ticket breakdown
+- [ ] Delivery records reference tickets whose `TICKET-NNN.md` still exists in the change's `tickets/<area-slug>/` directory
 - [ ] Code reviews reference acceptance criteria that still exist in the current tickets
 - [ ] IDs are append-only: no requirement, NFR, constraint, decision or ticket ID has been renumbered or reused since the earliest delivery record; withdrawn items remain in place marked Withdrawn
 - [ ] Every requirement an `@spec` annotation points at still says what it said when its delivery record was written (an amended statement means the code needs re-review — flag it)

@@ -29,13 +29,13 @@ Use this skill when:
 **Read from:**
 - Delivery record: `.gener8v/changes/[change-slug]/delivery/[capability-area-slug]-[ticket-id]-delivery.md`
 - Actual code files listed in the delivery record's "Files Produced" section — paths are root-relative; in a workspace with several repositories, the `## Repositories` table in `.gener8v/context.md` says which directory is which
-- The source ticket: `.gener8v/changes/[change-slug]/tickets/[capability-area-slug].md`
+- The source ticket: `.gener8v/changes/[change-slug]/tickets/[capability-area-slug]/TICKET-NNN.md` — one ticket, one file; `backlog.md` in the same directory gives the ordering context if needed
 - Specification: `.gener8v/specifications/[capability-area-slug].md` (living — functional and non-functional requirements)
 - Constraints: `.gener8v/constraints/prd.md` and `.gener8v/constraints/[capability-area-slug].md` (whichever exist)
 - Technical Design: `.gener8v/technical-design/[capability-area-slug].md` or `.gener8v/technical-design/system-design.md` (if available)
 - Conventions: `.gener8v/CONVENTIONS.md`
 
-**Expects:** A completed delivery record with Files Produced listing actual file paths. The corresponding ticket must exist in the ticket breakdown.
+**Expects:** A completed delivery record with Files Produced listing actual file paths. The corresponding ticket must exist as its own `TICKET-NNN.md` in the change's `tickets/<area-slug>/` directory.
 
 **If input is missing or malformed:**
 - If no delivery record exists for the ticket, stop and recommend running the Delivery skill first
@@ -178,7 +178,7 @@ Either an acceptance criterion is satisfied or it is not. Either a requirement i
 Like the Audit skill, findings are presented to the user for resolution. For each finding, the user may:
 - **Approve**: Apply the recommended change to the code
 - **Modify**: Provide a different fix; apply their preferred approach
-- **Defer**: Mark as `Deferred → TICKET-NNN` (and append a Known Hazard to that ticket in the ticket file so its implementer sees it) or `Deferred → <reason>`
+- **Defer**: Mark as `Deferred → TICKET-NNN` (and append a Known Hazard to that ticket's own file, `.gener8v/changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md`, so its implementer sees it) or `Deferred → <reason>`
 - **Dismiss**: Determine this is not an issue; mark `Dismissed` with rationale
 
 The skill updates code files when the user approves changes, re-runs the delivery record's Verification Run, and appends the change to `## Post-Review Amendments`.
@@ -194,7 +194,7 @@ The skill updates code files when the user approves changes, re-runs the deliver
 
 2. **Read Delivered Code**: Read all code files listed in the delivery record's Files Produced section.
 
-3. **Gather Pipeline Context**: Read the source ticket from `.gener8v/changes/<change-slug>/tickets/`, the living specification (functional and non-functional requirements), constraints (if available), and technical design (if available) for the capability area.
+3. **Gather Pipeline Context**: Read the source ticket file `.gener8v/changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md`, the living specification (functional and non-functional requirements), constraints (if available), and technical design (if available) for the capability area.
 
 4. **Check Acceptance Criteria**: For each acceptance criterion in the ticket, examine the delivered code for evidence of satisfaction. Record the evidence (file, line, function, behavior) or note its absence.
 
