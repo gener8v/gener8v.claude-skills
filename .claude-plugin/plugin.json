@@ -18,6 +18,5 @@
     "security-review",
     "hooks",
     "claude-code"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }
