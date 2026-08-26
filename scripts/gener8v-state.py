@@ -9,7 +9,7 @@ changes/<change-slug>/{change.md,tickets,delivery,reviews}. A legacy project wit
 tickets/, delivery/ and reviews/*-review.md is read as the pseudo-change "initial".
 
 Usage:
-  gener8v-state.py state   [--root DIR] [--stdout]   # write .gener8v/pipeline-state.yaml
+  gener8v-state.py state   [--root DIR] [--stdout [--json]]   # write .gener8v/pipeline-state.yaml (or print it; --json for CI)
   gener8v-state.py summary [--root DIR]              # short summary (what the SessionStart hook injects)
   gener8v-state.py lint    [--root DIR] [--src DIR]  # ID and coverage lints; exit 1 on ERROR
   gener8v-state.py metrics [--root DIR]              # derived metrics (YAML on stdout)
@@ -612,6 +612,9 @@ def public_state(state):
 
 def cmd_state(args):
     state, g = scan(args.root)
+    if args.json:
+        sys.stdout.write(json.dumps(public_state(state), indent=2) + "\n")
+        return 0
     text = HEADER + "\n".join(yaml_dump(public_state(state))) + "\n"
     if args.stdout or not g:
         sys.stdout.write(text)
@@ -760,6 +763,7 @@ def main(argv=None):
     ap.add_argument("command", choices=["state", "summary", "lint", "metrics"])
     ap.add_argument("--root", default=os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
     ap.add_argument("--stdout", action="store_true", help="state: print instead of writing the file")
+    ap.add_argument("--json", action="store_true", help="state: print JSON to stdout (implies --stdout; no dependencies for CI gates)")
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--limit", type=int, default=6, help="summary: max next steps to show")
     ap.add_argument("--src", default=None, help="lint: source root to grep for @spec (default: --root)")

@@ -188,9 +188,22 @@ The skills are prose; a few things need to be mechanical. The plugin ships:
   - `PostToolUse` on Write/Edit: regenerates the state file after any write under `.gener8v/` and logs the write to `runs.jsonl`.
 - **`agents/`** — `code-reviewer`, `quality-reviewer`, `security-reviewer` (the findings phase of each review, safe to run in parallel because they only write their report) and `defect-sweeper` (the fresh pass Defect Sweep forks into).
 - **`scripts/gener8v-state.py`** — `state` writes the YAML (schema version 3: living coverage per area, one entry per change with its tickets, active changes, approvals pending); `summary` prints what the hook injects; `lint` reports prefix collisions, requirements and NFRs in no ticket, tickets missing required sections, delivered requirements with no `@spec` annotation, dangling references, and change briefs that disagree with the specifications; `metrics` derives verdict distributions, finding counts, rework rate, verification pass rate, deferred reviews, approvals pending, sweep findings, lead time (from git) and session counts (from `runs.jsonl`). Python 3, no dependencies.
-- **`scripts/check-install.sh`** — reports drift between the repository and a copied `~/.claude/skills/` install.
+- **`scripts/check-install.sh`** — reports drift between the repository and a copied `~/.claude/skills/` install (and, once the plugin is installed, which copies still linger).
 - **`skills/flow-mapping/scripts/validate-flows.sh`** — the Flow Mapping gate.
 - **`skills/*/references/`** — worked examples (one canonical project across every skill), Audit's check lists, Defect Sweep's defect classes, and the conventions Setup installs. Loaded when a skill needs them, not on every invocation.
+
+Running the script by hand (the hooks and Orchestrate do this for you):
+
+```bash
+S="$HOME/.claude/plugins/cache/gener8v-claude-skills/gener8v/$(ls "$HOME/.claude/plugins/cache/gener8v-claude-skills/gener8v" | sort -V | tail -1)/scripts/gener8v-state.py"
+python3 "$S" summary            # what the SessionStart hook injects
+python3 "$S" state              # rewrite .gener8v/pipeline-state.yaml
+python3 "$S" lint               # exit 1 on an ERROR (prefix collision, uncovered requirement, brief/spec mismatch)
+python3 "$S" metrics            # derived metrics, YAML on stdout
+python3 "$S" state --json       # the state as JSON, for CI
+```
+
+**Requirements.** Python 3.8+ for the hooks and the state script (without it the hooks stay silent and Orchestrate scans by hand); Node with `npx` for Flow Mapping's validator; git, if you want lead-time metrics.
 
 Periodic work — sweeps over high-consequence subsystems, dependency-vulnerability re-checks, posture reviews at milestones — is a good use of a scheduled routine (`/schedule`) or a cron-driven session. Orchestrate names the triggers; the cadence is the project's decision, so the plugin ships no schedule.
 
@@ -227,14 +240,16 @@ Depth should also track **correctness risk, not just capability-area count.** A 
 
 A ticket is **done** when its delivery record says `Delivered`, its Verification Run passed, and each of the three reviews is either `Approved` / `Approved with Notes` or explicitly deferred in the delivery record. A change is **complete** when every ticket under it is done. `pipeline-state.yaml` carries `done: true|false` per ticket and `status: complete` per change, derived from those lines — not from whether files exist. A `Changes Required` verdict from any review holds the ticket at `changes_required` until it is resolved.
 
-A CI gate reads those fields:
+A CI gate reads those fields — no dependencies beyond Python 3:
 
 ```bash
-python3 scripts/gener8v-state.py state --stdout \
-  | python3 -c 'import sys,yaml; s=yaml.safe_load(sys.stdin); \
+python3 scripts/gener8v-state.py state --json \
+  | python3 -c 'import sys,json; s=json.load(sys.stdin); \
       open=[f"{c}/{t}" for c,ch in s["changes"].items() for t,e in ch["deliveries"].items() if e["delivery"] and not e["done"]]; \
       print("open:",open); sys.exit(1 if open else 0)'
 ```
+
+`scripts/gener8v-state.py lint` is the other gate worth running in CI: it exits 1 on a requirement prefix used by two specifications, a requirement in no ticket, or a change brief that lists requirement IDs the specification does not contain.
 
 ## Workspaces
 
@@ -380,11 +395,31 @@ claude plugin marketplace add gener8v/gener8v.claude-skills
 claude plugin install gener8v@gener8v-claude-skills
 ```
 
-For development, load the checkout directly:
+Restart Claude Code afterwards — hooks and skills load at session start. Check with `claude plugin list`; the status should read `enabled`. To pick up a new release:
+
+```bash
+claude plugin marketplace update gener8v-claude-skills
+claude plugin update gener8v@gener8v-claude-skills
+```
+
+For development, load the checkout directly (no install, no cache):
 
 ```bash
 claude --plugin-dir /path/to/gener8v.claude-skills
 ```
+
+### Upgrading from a copied install
+
+If the skills were previously copied into `~/.claude/skills/`, move those copies out before or after installing the plugin — otherwise every skill exists twice (`/orchestrate` from the copy, `/gener8v:orchestrate` from the plugin) and the copy never updates:
+
+```bash
+mkdir -p ~/.claude/skills-backup-gener8v
+for s in architecture-review audit brownfield code-review constraints defect-sweep delivery dependencies flow-mapping orchestrate owasp-llm-top10-review owasp-top10-review planning quality-review security-review setup specification technical-design ticket-breakdown; do
+  [ -d ~/.claude/skills/$s ] && mv ~/.claude/skills/$s ~/.claude/skills-backup-gener8v/
+done
+```
+
+Projects already on the pipeline keep working; their `CLAUDE.md` section says `/<skill>`, which reads as `/gener8v:<skill>` under the plugin. Re-run `/gener8v:setup` in each project to refresh `CONVENTIONS.md` and the directives.
 
 ### Copy (skills only)
 
@@ -394,6 +429,13 @@ cp -r gener8v.claude-skills/skills/* ~/.claude/skills/
 ```
 
 This installs the nineteen skills and nothing else: no hooks, no agents, no `gener8v-state.py`. Orchestrate maintains `pipeline-state.yaml` by hand, the Flow Mapping gate is at `~/.claude/skills/flow-mapping/scripts/validate-flows.sh`, and there is no update mechanism — `scripts/check-install.sh` reports drift.
+
+## For maintainers
+
+- **Releasing:** bump `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` for any change to `hooks/`, `agents/` or `scripts/` — the installed plugin is cached by version, and `claude plugin update` only fetches a new one. Skill-only edits are picked up the same way; there is no separate publish step beyond merging to `main`.
+- **Hooks:** `hooks/hooks.json` is loaded automatically. Do not list it under `hooks` in `plugin.json` — that registers it twice and the plugin fails to load ("Duplicate hooks file detected"). Hook commands use `${CLAUDE_PLUGIN_ROOT}` and must stay executable (`chmod +x scripts/*.sh`).
+- **Before merging:** `claude plugin validate .`; `bash -n scripts/*.sh skills/flow-mapping/scripts/validate-flows.sh`; `python3 -m py_compile scripts/gener8v-state.py`; and run the script's `state`, `lint` and `metrics` against a project with a `.gener8v/` (a fixture with one change, a delivered ticket and a legacy remnant catches most regressions).
+- **Conventions first:** a change to a path, a vocabulary word or an ID rule is made in `skills/setup/references/conventions.md`, then in every skill that mentions it, then in `scripts/gener8v-state.py` — with `schema_version` bumped when the state file's shape changes.
 
 ## License
 
