@@ -16,7 +16,7 @@ ObjC.import('stdlib');
 
 var CELL_ASPECT = 1.6;  // preferred cell width/height when choosing a column count
 var MIN_WIN     = 50;   // CGWindowList: ignore helper windows smaller than this (px)
-var TOL         = 2;    // px tolerance when checking whether the app honoured a rect
+var TOL         = 16;   // px: apps that size windows in character cells (Terminal, editors) land a few px short — still tiled
 
 var USAGE = [
   'usage: tile.js "<App Name>" [--cols N] [--screen N] [--gap PX] [--dry-run] [--list]',
@@ -28,7 +28,9 @@ var USAGE = [
   '  --gap PX     gap between cells in pixels (default 0)',
   '  --dry-run    print the plan, move nothing (needs no permissions)',
   '  --list       list monitors and running apps with their on-screen window counts',
+  '  --relay      always exit 0 (the /macos:tile skill uses this so the model can relay any message)',
 ].join('\n');
+var RELAY = false;
 
 // Which app macOS holds responsible for this process — the one to enable in System Settings.
 // __CFBundleIdentifier is set by LaunchServices on every process a .app spawns (Terminal, VS Code, …).
@@ -60,7 +62,7 @@ function out(s) {
   var str = $.NSString.alloc.initWithUTF8String(String(s) + '\n');
   $.NSFileHandle.fileHandleWithStandardOutput.writeData(str.dataUsingEncoding($.NSUTF8StringEncoding));
 }
-function die(msg, code) { out(msg); $.exit(code === undefined ? 1 : code); }
+function die(msg, code) { out(msg); $.exit(RELAY ? 0 : (code === undefined ? 1 : code)); }
 function str(v) { try { var s = ObjC.unwrap(v); return typeof s === 'string' ? s : ''; } catch (e) { return ''; } }
 function r(n) { return Math.round(n); }
 function fmt(b) { return '(' + r(b.x) + ',' + r(b.y) + ' ' + r(b.w) + '×' + r(b.h) + ')'; }
@@ -78,6 +80,7 @@ function parseArgs(argv) {
     if (a === '--dry-run' || a === '--print' || a === '-n') o.dry = true;
     else if (a === '--list' || a === '-l') o.list = true;
     else if (a === '--help' || a === '-h') o.help = true;
+    else if (a === '--relay') RELAY = true;
     else if (a === '--cols' || a === '-c') o.cols = val();
     else if (a === '--screen' || a === '-s') o.screen = val();
     else if (a === '--gap' || a === '-g') o.gap = val();
@@ -153,20 +156,24 @@ function cgWindows(pid) {
     return { x: b.X, y: b.Y, w: b.Width, h: b.Height, title: w.kCGWindowName || '', ax: null };
   });
 }
-// Accessibility listing via System Events. Same ordering; carries the handle we set later.
+// Accessibility listing via System Events. Same ordering; carries the reference we set later.
+// References are by index (windows.at(i)), never by title: JXA's default element references are
+// byName, and a title that changes between the read and the write (Terminal's does, constantly)
+// makes the write fail with -1728 "Can't get object".
 function axWindows(pid) {
   var se = Application('System Events');
-  var procs = se.processes.whose({ unixId: pid })();
-  if (!procs.length) die('System Events cannot see pid ' + pid);
-  var res = [];
-  procs[0].windows().forEach(function (w) {
+  if (!se.processes.whose({ unixId: pid })().length) die('System Events cannot see pid ' + pid);
+  var proc = se.processes.whose({ unixId: pid })[0];
+  var n = proc.windows.length, res = [];
+  for (var i = 0; i < n; i++) {
+    var w = proc.windows[i];
     var sub = ''; try { sub = w.subrole(); } catch (e) {}
-    if (sub && sub !== 'AXStandardWindow') return;               // skip dialogs, floating panels, sheets
+    if (sub && sub !== 'AXStandardWindow') continue;             // skip dialogs, floating panels, sheets
     var mini = false; try { mini = !!w.attributes.byName('AXMinimized').value(); } catch (e) {}
-    if (mini) return;
+    if (mini) continue;
     var p = w.position(), s = w.size(), t = ''; try { t = w.name() || ''; } catch (e) {}
     res.push({ x: p[0], y: p[1], w: s[0], h: s[1], title: t, ax: w });
-  });
+  }
   return res;
 }
 function axTrusted() { try { return !!$.AXIsProcessTrusted(); } catch (e) { return null; } }   // null = could not check
@@ -202,6 +209,10 @@ function layout(n, cols, usable, gap) {
 
 // ---------------------------------------------------------------- main
 function run(argv) {
+  try { return main(argv); }
+  catch (e) { die('Error: ' + String(e && e.message || e).split('\n')[0], 1); }
+}
+function main(argv) {
   var o = parseArgs(argv);
   if (o.help) { out(USAGE); return; }
   var scr = screens();
@@ -256,14 +267,25 @@ function run(argv) {
       + (o.gap ? ', gap ' + o.gap : '') + (empty ? ', ' + empty + ' empty cell' + (empty === 1 ? '' : 's') + ' in last row' : ''));
   out('Windows (front → back, via ' + source + '):');
 
+  var moved = 0, refused = 0, failed = 0;
   wins.forEach(function (w, i) {
     var c = L.cells[i], label = '  #' + pad(i + 1, 2) + ' ' + pad(clip(w.title || '', 32), 32) + ' ' + fmt(w) + ' → ' + fmt(c);
     if (o.dry) { out(label); return; }
-    w.ax.size = [c.w, c.h]; w.ax.position = [c.x, c.y]; w.ax.size = [c.w, c.h];   // size-position-size: survives edge clamping
-    var p = w.ax.position(), s = w.ax.size();
-    var ok = Math.abs(p[0] - c.x) <= TOL && Math.abs(p[1] - c.y) <= TOL && Math.abs(s[0] - c.w) <= TOL && Math.abs(s[1] - c.h) <= TOL;
-    out(label + (ok ? '  ✓' : '  ✗ app settled at ' + fmt({ x: p[0], y: p[1], w: s[0], h: s[1] })));
+    var p, s;
+    try {
+      w.ax.size = [c.w, c.h]; w.ax.position = [c.x, c.y]; w.ax.size = [c.w, c.h];   // size-position-size: survives edge clamping
+      p = w.ax.position(); s = w.ax.size();
+    } catch (e) { failed++; out(label + '  ✗ could not move: ' + String(e && e.message || e).split('\n')[0]); return; }
+    var got = { x: p[0], y: p[1], w: s[0], h: s[1] };
+    var dx = Math.abs(got.x - c.x), dy = Math.abs(got.y - c.y), dw = Math.abs(got.w - c.w), dh = Math.abs(got.h - c.h);
+    var exact = dx + dy + dw + dh === 0, ok = dx <= TOL && dy <= TOL && dw <= TOL && dh <= TOL;
+    if (ok) moved++; else refused++;
+    out(label + (exact ? '  ✓' : ok ? '  ✓ snapped to ' + fmt(got) : '  ✗ app settled at ' + fmt(got)));
   });
 
-  if (o.dry) out('\nDRY RUN — nothing was moved. Re-run without --dry-run to apply.');
+  if (o.dry) { out('\nDRY RUN — nothing was moved. Re-run without --dry-run to apply.'); return; }
+  var summary = 'Tiled ' + moved + ' of ' + wins.length + ' window' + (wins.length === 1 ? '' : 's')
+    + (refused ? ', ' + refused + ' refused the exact size' : '') + (failed ? ', ' + failed + ' could not be moved' : '') + '.';
+  if (failed) die('\n' + summary, 1);
+  out('\n' + summary);
 }

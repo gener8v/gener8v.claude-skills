@@ -19,7 +19,7 @@
       "name": "macos",
       "source": "./plugins/macos",
       "description": "macOS desktop utilities for Claude Code. /macos:tile lays every on-screen window of one app out in an even grid on one monitor — dry-run first, Accessibility-based, no third-party window manager needed.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "strict": true
     }
   ]
