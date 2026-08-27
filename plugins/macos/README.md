@@ -1,6 +1,6 @@
 # gener8v macOS utilities
 
-Desktop utilities for Claude Code on macOS. One skill so far.
+Desktop utilities for Claude Code on macOS. Two skills: `/macos:tile` does the work; `/macos:arrange` plans it from plain language.
 
 ## `/macos:tile` — tile one app's windows into an even grid
 
@@ -11,7 +11,7 @@ Desktop utilities for Claude Code on macOS. One skill so far.
 Takes every on-screen window of one app and lays them out as equal cells that fill the usable area of one monitor (menu bar and Dock excluded), with a gutter between windows and at the edges that scales with the monitor (2.5 % of its shorter side — 36 px on a 1440-px-tall display). Windows on other monitors are pulled onto the target monitor. Minimized windows and windows in other Spaces are left alone.
 
 ```
-/macos:tile --list                       # monitors, and running apps with their window counts
+/macos:tile --list                       # monitors (with left/right hints), running apps, window counts, which monitor
 /macos:tile Terminal --dry-run           # print the plan; move nothing
 /macos:tile Google Chrome                # apply (multi-word names may be unquoted; "chrome" also matches)
 /macos:tile Code --cols 2 --screen 2     # force 2 columns, target the second monitor
@@ -31,6 +31,16 @@ Takes every on-screen window of one app and lays them out as equal cells that fi
 The column count is chosen from the window count and the monitor's shape, so two windows on an ultrawide become two tall columns and eight become a 4×2 grid. `--cols` overrides it. The target monitor defaults to the one under the app's front window; `--screen N` uses the index from `--list`.
 
 Every window line in the output shows the window's current rect and its target rect. After an apply, each line ends with `✓` (`✓ snapped to …` when an app that sizes windows in character cells, such as Terminal, landed a few pixels short), or with `✗` and the rect the app actually settled on when it refused the exact size (apps with a minimum or maximum window size do this).
+
+## `/macos:arrange` — plain language in, tile commands out
+
+```
+/macos:arrange Chrome on the right monitor in three columns with wide gutters
+/macos:arrange spread my VS Code windows out, no gaps
+/macos:arrange Terminal side by side on the OLED, then Slack stacked on the other one — go
+```
+
+`arrange` captures the live inventory (`tile --list`: monitors with left/right hints, running apps with window counts and which monitor they are on), translates the request into exact `/macos:tile` commands, prints them so you can copy them, dry-runs each one and shows the plan, then asks before applying. Say "go", "apply" or "do it" in the request to skip the question. Because it has a description, Claude also reaches for it on its own when you describe a layout in conversation; `/macos:tile` stays a typed command only.
 
 ### Permissions
 

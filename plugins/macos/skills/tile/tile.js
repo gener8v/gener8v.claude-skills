@@ -239,18 +239,28 @@ function main(argv) {
   var scr = screens();
 
   if (o.list) {
-    out('Monitors (index · name · usable area, top-left coords):');
-    scr.forEach(function (s) { out('  ' + s.index + '  ' + pad(s.name, 22) + ' ' + fmt(s.usable)); });
-    var counts = {};
+    var byX = scr.slice().sort(function (a, b) { return a.usable.x - b.usable.x; }), hint = {};
+    if (scr.length > 1 && byX[0].usable.x !== byX[byX.length - 1].usable.x)
+      byX.forEach(function (s, i) { hint[s.index] = i === 0 ? 'left' : i === byX.length - 1 ? 'right' : 'middle'; });
+    out('Monitors (index · name · usable area in top-left coords · position):');
+    scr.forEach(function (s) {
+      var tags = []; if (hint[s.index]) tags.push(hint[s.index]); if (s.index === 1) tags.push('main, menu bar');
+      out('  ' + s.index + '  ' + pad(s.name, 22) + ' ' + pad(fmt(s.usable), 24) + (tags.length ? ' ' + tags.join(', ') : ''));
+    });
+    var counts = {}, where = {};
     cgList().forEach(function (w) {
       var b = w.kCGWindowBounds;
-      if (w.kCGWindowLayer === 0 && b && b.Width >= MIN_WIN && b.Height >= MIN_WIN) counts[w.kCGWindowOwnerPID] = (counts[w.kCGWindowOwnerPID] || 0) + 1;
+      if (!(w.kCGWindowLayer === 0 && b && b.Width >= MIN_WIN && b.Height >= MIN_WIN)) return;
+      var pid = w.kCGWindowOwnerPID, m = screenFor({ x: b.X, y: b.Y, w: b.Width, h: b.Height }, scr).index;
+      counts[pid] = (counts[pid] || 0) + 1; where[pid] = where[pid] || {}; where[pid][m] = (where[pid][m] || 0) + 1;
     });
-    out('\nRunning apps (on-screen windows in this Space):');
+    out('\nRunning apps (on-screen windows in this Space · which monitor they are on):');
     runningApps().sort(function (a, b) { return a.name.localeCompare(b.name); }).forEach(function (a) {
-      out('  ' + pad(counts[a.pid] || 0, 3) + ' ' + pad(a.name, 28) + ' ' + a.bundle);
+      var c = counts[a.pid] || 0, on = '';
+      if (c) on = '  on monitor ' + Object.keys(where[a.pid]).sort().map(function (k) { return k + (where[a.pid][k] > 1 ? ' ×' + where[a.pid][k] : ''); }).join(', ');
+      out('  ' + pad(c, 3) + ' ' + pad(a.name, 28) + ' ' + pad(a.bundle, 34) + on);
     });
-    out('\nAccessibility granted to ' + hostApp().name + ': ' + ({ true: 'yes', false: 'no', null: 'unknown' })[axTrusted()]);
+    out('\nAccessibility granted to ' + hostApp().name + ': ' + ({ true: 'yes', false: 'no', null: 'unknown' })[axTrusted()] + '  (needed to apply; dry runs work without it)');
     return;
   }
 
