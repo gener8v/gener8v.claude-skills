@@ -439,7 +439,7 @@ This installs the nineteen skills and nothing else: no hooks, no agents, no `gen
 
 ### [macos](./plugins/macos/) — `/macos:tile`, `/macos:arrange`
 
-Desktop utilities for Claude Code on macOS, independent of the pipeline. `/macos:tile <App>` lays every on-screen window of one app out in an even grid on one monitor; `--dry-run` prints the plan without moving anything and needs no permissions. `/macos:arrange <plain language>` reads the live monitor and app inventory, turns a request like "Chrome on the right monitor in three columns" into exact `/macos:tile` commands, dry-runs them, and applies on confirmation. See [plugins/macos/README.md](./plugins/macos/README.md) for the Accessibility permission it needs to apply.
+Desktop utilities for Claude Code on macOS, independent of the pipeline. `/macos:tile <App>` lays an app's windows out in an even grid on one monitor — or a region of it (`--region left`, `top-right`, `0,0,25,100`), for some of the windows (`--front 2`, `--match docs`), with proportional gutters — and can save the result as a named layout to replay later (`--save dev`, `--run dev`). `/macos:arrange <plain language>` reads the live monitor, app and layout inventory, turns "two terminals stacked in the left quarter of my monitor" into the exact `/macos:tile` command, dry-runs it, shows both readings when a phrase is ambiguous, and applies on confirmation. `--dry-run` never needs permissions; applying needs Accessibility — see [plugins/macos/README.md](./plugins/macos/README.md).
 
 ```bash
 claude plugin install macos@gener8v-claude-skills
