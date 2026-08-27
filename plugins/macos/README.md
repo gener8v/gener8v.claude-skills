@@ -5,20 +5,27 @@ Desktop utilities for Claude Code on macOS. One skill so far.
 ## `/macos:tile` — tile one app's windows into an even grid
 
 ```
-/macos:tile <App Name> [--cols N] [--screen N] [--gap PX] [--dry-run] [--list]
+/macos:tile <App Name> [--cols N] [--screen N] [--gap PX] [--margin PX] [--dry-run] [--list]
 ```
 
-Takes every on-screen window of one app and lays them out as equal cells that fill the usable area of one monitor (menu bar and Dock excluded). Windows on other monitors are pulled onto the target monitor. Minimized windows and windows in other Spaces are left alone.
+Takes every on-screen window of one app and lays them out as equal cells that fill the usable area of one monitor (menu bar and Dock excluded), with a 12 px gutter between windows and at the edges. Windows on other monitors are pulled onto the target monitor. Minimized windows and windows in other Spaces are left alone.
 
 ```
 /macos:tile --list                       # monitors, and running apps with their window counts
 /macos:tile Terminal --dry-run           # print the plan; move nothing
 /macos:tile Google Chrome                # apply (multi-word names may be unquoted; "chrome" also matches)
 /macos:tile Code --cols 2 --screen 2     # force 2 columns, target the second monitor
-/macos:tile Slack --gap 8                # 8 px between cells
+/macos:tile Slack --gap 0                # edge to edge, no gutters
+/macos:tile Slack --gap 8 --margin 24    # 8 px between windows, 24 px at the monitor edges
 ```
 
 `<App Name>` matches the app's name, bundle id, or `.app` file name, case-insensitively — `Code`, `vscode`, and `Visual Studio Code` all find VS Code. When the name is ambiguous the skill lists the candidates instead of guessing.
+
+`--gap` is the gutter between windows and at the monitor edges (default 12). `--margin` sets the outer gutter separately when it should differ. To change the defaults for every run, set `TILE_GAP` and/or `TILE_MARGIN` — for the skill, in Claude Code's `settings.json` `env` block, since the pre-execution shell does not read your shell profile:
+
+```json
+{ "env": { "TILE_GAP": "16" } }
+```
 
 The column count is chosen from the window count and the monitor's shape, so two windows on an ultrawide become two tall columns and eight become a 4×2 grid. `--cols` overrides it. The target monitor defaults to the one under the app's front window; `--screen N` uses the index from `--list`.
 
