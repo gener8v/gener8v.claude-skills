@@ -1,7 +1,7 @@
 ---
 name: tile
 description: Tile every on-screen window of one app into an even grid on one monitor (macOS). Runs only when the user types /macos:tile.
-argument-hint: <App Name> [--cols N] [--screen N] [--gap SIZE] [--margin SIZE] [--region R] [--front N] [--match TEXT] [--dry-run] [--list]
+argument-hint: <App Name> [--cols N] [--screen N] [--gap SIZE] [--margin SIZE] [--region R] [--front N] [--match TEXT] [--dry-run] [--list] [--save NAME] [--run NAME] [--layouts]
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/skills/tile/tile.js:*)
 ---
@@ -18,3 +18,4 @@ Relay the outcome to the user in one or two lines: which app was tiled onto whic
 - A line ending in `✓ snapped to …` is a success (the app sizes windows in character cells); do not call it out.
 - If a window line ends with ✗, say the app refused the exact size (or could not be moved) and show where it settled.
 - If the output is the usage text, show it and ask for an app name. Suggest `/macos:tile --list` to see candidates.
+- If the output lists saved layouts or says a layout was saved or forgotten, relay that in one line.
