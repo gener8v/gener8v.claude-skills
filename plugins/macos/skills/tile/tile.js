@@ -19,6 +19,8 @@ var MIN_WIN     = 50;   // CGWindowList: ignore helper windows smaller than this
 var DEFAULT_GAP = '2.5%'; // gutter between windows and at the monitor edges, as a share of the monitor's shorter side
                           // (≈36 px on a 1440-px-tall display, scales with the screen). Pixels also accepted. Env TILE_GAP overrides.
 var TOL         = 16;   // px: apps that size windows in character cells (Terminal, editors) land a few px short — still tiled
+function env(name) { var v = (ObjC.deepUnwrap($.NSProcessInfo.processInfo.environment) || {})[name]; return v === undefined ? '' : String(v); }
+var LAYOUTS_FILE = env('TILE_LAYOUTS') || (env('HOME') + '/.config/macos-tile/layouts.json');   // saved layouts: {name: {steps: ["<tile args>", …]}}
 
 var USAGE = [
   'usage: tile.js "<App Name>" [--cols N] [--screen N] [--gap PX] [--dry-run] [--list]',
@@ -37,6 +39,11 @@ var USAGE = [
   '  --match TEXT only windows whose title contains TEXT (case-insensitive)',
   '  --dry-run    print the plan, move nothing (needs no permissions)',
   '  --list       list monitors and running apps with their on-screen window counts',
+  '',
+  '  --save NAME  also save this command as layout NAME (replacing NAME); --add NAME appends it as a further step',
+  '  --run NAME   run every step of saved layout NAME in order (--dry-run applies to all of them)',
+  '  --layouts    list saved layouts; --forget NAME deletes one',
+  '               store: ~/.config/macos-tile/layouts.json (env TILE_LAYOUTS)',
   '  --relay      always exit 0 (the /macos:tile skill uses this so the model can relay any message)',
 ].join('\n');
 var RELAY = false;
@@ -108,21 +115,85 @@ function applyRegion(usable, region) {
 }
 function resolveSize(size, usable) { return size.pct !== undefined ? Math.round(Math.min(usable.w, usable.h) * size.pct / 100) : size.px; }
 function describeSize(px, size) { return px + (size.pct !== undefined ? ' (' + size.text + ')' : ''); }
+
+// ---------------------------------------------------------------- saved layouts
+function readFile(path) {
+  var s = $.NSString.stringWithContentsOfFileEncodingError(path, $.NSUTF8StringEncoding, $());
+  return s.isNil() ? null : ObjC.unwrap(s);
+}
+function writeFile(path, text) {
+  $.NSFileManager.defaultManager.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(path.replace(/\/[^\/]*$/, ''), true, $(), $());
+  if (!$.NSString.alloc.initWithUTF8String(text).writeToFileAtomicallyEncodingError(path, true, $.NSUTF8StringEncoding, $())) die('Could not write ' + path);
+}
+function loadLayouts() {
+  var text = readFile(LAYOUTS_FILE); if (text === null) return {};
+  try { var d = JSON.parse(text); return (d && typeof d === 'object' && !Array.isArray(d)) ? d : {}; }
+  catch (e) { die('Cannot parse ' + LAYOUTS_FILE + ': ' + e.message); }
+}
+function storeLayouts(d) { writeFile(LAYOUTS_FILE, JSON.stringify(d, null, 2) + '\n'); }
+function quoteArgs(tokens) { return tokens.map(function (t) { return /[\s"]/.test(t) || t === '' ? '"' + t.replace(/"/g, '\\"') + '"' : t; }).join(' '); }
+function tokenize(line) {   // split on whitespace, honouring double and single quotes
+  var res = [], cur = '', q = null, has = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (q) { if (ch === q) q = null; else if (ch === '\\' && q === '"' && line[i + 1] === '"') { cur += '"'; i++; } else cur += ch; }
+    else if (ch === '"' || ch === "'") { q = ch; has = true; }
+    else if (/\s/.test(ch)) { if (cur || has) { res.push(cur); cur = ''; has = false; } }
+    else cur += ch;
+  }
+  if (q) die('Unbalanced quote in saved step: ' + line);
+  if (cur || has) res.push(cur);
+  return res;
+}
+function saveLayout(name, step, append) {
+  var d = loadLayouts();
+  if (append) { if (!d[name] || !d[name].steps) die('No saved layout "' + name + '" to add to — use --save ' + name + ' first.'); d[name].steps.push(step); }
+  else d[name] = { steps: [step] };
+  storeLayouts(d);
+  var n = d[name].steps.length;
+  out('Saved layout "' + name + '" (' + n + ' step' + (n === 1 ? '' : 's') + ') → ' + LAYOUTS_FILE + '\n');
+}
+function listLayouts() {
+  var d = loadLayouts(), names = Object.keys(d).sort();
+  out('Saved layouts (' + LAYOUTS_FILE + '):');
+  if (!names.length) { out('  (none — add --save NAME to any tile command)'); return; }
+  names.forEach(function (n) { out('  ' + n); (d[n].steps || []).forEach(function (st, i) { out('    ' + (i + 1) + '. ' + st); }); });
+}
+function forgetLayout(name) { var d = loadLayouts(); if (!d[name]) die('No saved layout "' + name + '".'); delete d[name]; storeLayouts(d); out('Forgot layout "' + name + '".'); }
+function runLayout(name, outer, scr) {
+  var d = loadLayouts();
+  if (!d[name] || !d[name].steps) die('No saved layout "' + name + '". Saved: ' + (Object.keys(d).join(', ') || 'none') + '.');
+  var steps = d[name].steps, failed = 0;
+  steps.forEach(function (line, i) {
+    out((i ? '\n' : '') + '── ' + name + ' · step ' + (i + 1) + '/' + steps.length + ': ' + line + ' ──');
+    var o = parseArgs(tokenize(line));
+    if (o.run || o.save || o.add || o.list || o.layouts || o.forget || o.help || !o.app) die('Step ' + (i + 1) + ' of "' + name + '" is not a tile command: ' + line);
+    o.dry = o.dry || outer.dry;
+    failed += tileOnce(o, scr);
+  });
+  if (failed) $.exit(RELAY ? 0 : 1);
+}
 function clip(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
 // ---------------------------------------------------------------- args
 function parseArgs(argv) {
-  var o = { app: null, cols: null, screen: null, gap: envSize('TILE_GAP', parseSize('default gap', DEFAULT_GAP)), margin: envSize('TILE_MARGIN', null), region: null, front: null, match: null, dry: false, list: false, help: false };
+  var o = { app: null, cols: null, screen: null, gap: envSize('TILE_GAP', parseSize('default gap', DEFAULT_GAP)), margin: envSize('TILE_MARGIN', null), region: null, front: null, match: null, dry: false, list: false, help: false,
+            save: null, add: null, run: null, layouts: false, forget: null, kept: [] };
   var words = [];
   for (var i = 0; i < argv.length; i++) {
-    var a = String(argv[i]), v = null, eq = a.indexOf('=');
+    var a = String(argv[i]), v = null, eq = a.indexOf('='), start = i, skip = false;   // skip: not part of the tile command itself
     if (a.charAt(0) === '-' && eq > 0) { v = a.slice(eq + 1); a = a.slice(0, eq); }
     function sval() { if (v === null) v = String(argv[++i]); return v; }
     function val() { var n = parseInt(sval(), 10); if (isNaN(n)) die('Bad value for ' + a + ': ' + v); return n; }
-    if (a === '--dry-run' || a === '--print' || a === '-n') o.dry = true;
-    else if (a === '--list' || a === '-l') o.list = true;
-    else if (a === '--help' || a === '-h') o.help = true;
-    else if (a === '--relay') RELAY = true;
+    if (a === '--dry-run' || a === '--print' || a === '-n') { o.dry = true; skip = true; }
+    else if (a === '--list' || a === '-l') { o.list = true; skip = true; }
+    else if (a === '--help' || a === '-h') { o.help = true; skip = true; }
+    else if (a === '--relay') { RELAY = true; skip = true; }
+    else if (a === '--save') { o.save = sval(); skip = true; }
+    else if (a === '--add') { o.add = sval(); skip = true; }
+    else if (a === '--run') { o.run = sval(); skip = true; }
+    else if (a === '--layouts') { o.layouts = true; skip = true; }
+    else if (a === '--forget') { o.forget = sval(); skip = true; }
     else if (a === '--cols' || a === '-c') o.cols = val();
     else if (a === '--screen' || a === '-s') o.screen = val();
     else if (a === '--gap' || a === '-g') o.gap = parseSize('--gap', sval());
@@ -132,6 +203,7 @@ function parseArgs(argv) {
     else if (a === '--match') o.match = String(sval()).toLowerCase();
     else if (a.charAt(0) === '-') die('Unknown option: ' + a + '\n\n' + USAGE);
     else words.push(a);
+    if (!skip) for (var k = start; k <= i; k++) o.kept.push(String(argv[k]));
   }
   if (words.length) o.app = words.join(' ');
   if (o.cols !== null && o.cols < 1) die('--cols must be ≥ 1');
@@ -293,7 +365,17 @@ function main(argv) {
     return;
   }
 
+  if (o.layouts) { listLayouts(); return; }
+  if (o.forget !== null) { forgetLayout(o.forget); return; }
+  if (o.run !== null) { runLayout(o.run, o, scr); return; }
   if (!o.app) die(USAGE);
+  if (o.save !== null) saveLayout(o.save, quoteArgs(o.kept), false);
+  if (o.add !== null) saveLayout(o.add, quoteArgs(o.kept), true);
+  if (tileOnce(o, scr)) $.exit(RELAY ? 0 : 1);
+}
+
+// One tile command: resolve app, windows, area, layout; apply unless dry. Returns the number of windows that could not be moved.
+function tileOnce(o, scr) {
   var app = findApp(o.app);
   var trusted = axTrusted();
 
@@ -353,9 +435,9 @@ function main(argv) {
     out(label + (exact ? '  ✓' : ok ? '  ✓ snapped to ' + fmt(got) : '  ✗ app settled at ' + fmt(got)));
   });
 
-  if (o.dry) { out('\nDRY RUN — nothing was moved. Re-run without --dry-run to apply.'); return; }
+  if (o.dry) { out('\nDRY RUN — nothing was moved. Re-run without --dry-run to apply.'); return 0; }
   var summary = 'Tiled ' + moved + ' of ' + wins.length + ' window' + (wins.length === 1 ? '' : 's')
     + (refused ? ', ' + refused + ' refused the exact size' : '') + (failed ? ', ' + failed + ' could not be moved' : '') + '.';
-  if (failed) die('\n' + summary, 1);
   out('\n' + summary);
+  return failed;
 }

@@ -6,6 +6,7 @@ Desktop utilities for Claude Code on macOS. Two skills: `/macos:tile` does the w
 
 ```
 /macos:tile <App Name> [--cols N] [--screen N] [--region R] [--front N] [--match TEXT] [--gap SIZE] [--margin SIZE] [--dry-run] [--list]
+/macos:tile --save NAME … · --add NAME … · --run NAME · --layouts · --forget NAME
 ```
 
 Takes every on-screen window of one app and lays them out as equal cells that fill the usable area of one monitor (menu bar and Dock excluded), with a gutter between windows and at the edges that scales with the monitor (2.5 % of its shorter side — 36 px on a 1440-px-tall display). Windows on other monitors are pulled onto the target monitor. Minimized windows and windows in other Spaces are left alone.
@@ -46,7 +47,21 @@ Every window line in the output shows the window's current rect and its target r
 /macos:arrange Terminal side by side on the OLED, then Slack stacked on the other one — go
 ```
 
-`arrange` captures the live inventory (`tile --list`: monitors with left/right hints, running apps with window counts and which monitor they are on), translates the request into exact `/macos:tile` commands, prints them so you can copy them, dry-runs each one and shows the plan, then asks before applying. Say "go", "apply" or "do it" in the request to skip the question. Because it has a description, Claude also reaches for it on its own when you describe a layout in conversation; `/macos:tile` stays a typed command only.
+`arrange` captures the live inventory (`tile --list`: monitors with left/right hints, running apps with window counts and which monitor they are on; `tile --layouts`: your saved layouts), translates the request into exact `/macos:tile` commands, prints them so you can copy them, dry-runs each one and shows the plan, then asks before applying. When a phrase has two reasonable readings (a "quadrant" on an ultrawide, "on the left" with two monitors) it prints both commands as A and B with their dry runs and asks which. Say "go", "apply" or "do it" in the request to skip the question. Because it has a description, Claude also reaches for it on its own when you describe a layout in conversation; `/macos:tile` stays a typed command only.
+
+### Saved layouts
+
+Any tile command can be saved by name and run again later, and a layout can have several steps:
+
+```
+/macos:tile Terminal --front 2 --cols 1 --region 0,0,25,100 --save dev    # save (and run) step 1
+/macos:tile Code --region right-two-thirds --add dev                      # append step 2
+/macos:tile --run dev                                                      # run both, in order
+/macos:tile --run dev --dry-run                                            # preview both
+/macos:tile --layouts                                                      # list; --forget dev deletes
+```
+
+Layouts live in `~/.config/macos-tile/layouts.json` (override with `TILE_LAYOUTS`) as `{"dev": {"steps": ["Terminal --front 2 …", "Code --region …"]}}` — plain text, edit freely. `arrange` sees the list too, so "run my dev layout" and "save this as dev" work in plain language.
 
 ### Permissions
 
