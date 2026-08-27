@@ -435,6 +435,16 @@ cp -r gener8v.claude-skills/skills/* ~/.claude/skills/
 
 This installs the nineteen skills and nothing else: no hooks, no agents, no `gener8v-state.py`. Orchestrate maintains `pipeline-state.yaml` by hand, the Flow Mapping gate is at `~/.claude/skills/flow-mapping/scripts/validate-flows.sh`, and there is no update mechanism — `scripts/check-install.sh` reports drift.
 
+## Other plugins in this marketplace
+
+### [macos](./plugins/macos/) — `/macos:tile`
+
+Desktop utilities for Claude Code on macOS, independent of the pipeline. `/macos:tile <App>` lays every on-screen window of one app out in an even grid on one monitor; `--dry-run` prints the plan without moving anything and needs no permissions. See [plugins/macos/README.md](./plugins/macos/README.md) for the Accessibility permission it needs to apply.
+
+```bash
+claude plugin install macos@gener8v-claude-skills
+```
+
 ## For maintainers
 
 - **Releasing:** bump `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` for any change to `hooks/`, `agents/` or `scripts/` — the installed plugin is cached by version, and `claude plugin update` only fetches a new one. Skill-only edits are picked up the same way; there is no separate publish step beyond merging to `main`.

@@ -14,6 +14,13 @@
       "description": "A structured pipeline for turning ideas into delivered, reviewed code — PRD, specification, constraints, dependencies, technical design, tickets, delivery with @spec traceability, code/quality/security reviews, OWASP and architecture assessments, flow maps, defect sweeps, audit and orchestration — with hooks that keep pipeline state in front of every session. Greenfield and brownfield.",
       "version": "0.3.0",
       "strict": true
+    },
+    {
+      "name": "macos",
+      "source": "./plugins/macos",
+      "description": "macOS desktop utilities for Claude Code. /macos:tile lays every on-screen window of one app out in an even grid on one monitor — dry-run first, Accessibility-based, no third-party window manager needed.",
+      "version": "0.1.0",
+      "strict": true
     }
   ]
 }
