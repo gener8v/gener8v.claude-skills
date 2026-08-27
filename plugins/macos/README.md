@@ -5,7 +5,7 @@ Desktop utilities for Claude Code on macOS. Two skills: `/macos:tile` does the w
 ## `/macos:tile` — tile one app's windows into an even grid
 
 ```
-/macos:tile <App Name> [--cols N] [--screen N] [--gap SIZE] [--margin SIZE] [--dry-run] [--list]
+/macos:tile <App Name> [--cols N] [--screen N] [--region R] [--front N] [--match TEXT] [--gap SIZE] [--margin SIZE] [--dry-run] [--list]
 ```
 
 Takes every on-screen window of one app and lays them out as equal cells that fill the usable area of one monitor (menu bar and Dock excluded), with a gutter between windows and at the edges that scales with the monitor (2.5 % of its shorter side — 36 px on a 1440-px-tall display). Windows on other monitors are pulled onto the target monitor. Minimized windows and windows in other Spaces are left alone.
@@ -18,6 +18,8 @@ Takes every on-screen window of one app and lays them out as equal cells that fi
 /macos:tile Slack --gap 0                # edge to edge, no gutters
 /macos:tile Slack --gap 1% --margin 4%   # 1 % between windows, 4 % at the monitor edges
 /macos:tile Slack --gap 24               # fixed 24 px everywhere
+/macos:tile Terminal --front 2 --region left      # the two frontmost Terminal windows, left half of the monitor
+/macos:tile Code --match docs --region top-right  # the VS Code window whose title contains "docs", top-right corner
 ```
 
 `<App Name>` matches the app's name, bundle id, or `.app` file name, case-insensitively — `Code`, `vscode`, and `Visual Studio Code` all find VS Code. When the name is ambiguous the skill lists the candidates instead of guessing.
@@ -28,7 +30,9 @@ Takes every on-screen window of one app and lays them out as equal cells that fi
 { "env": { "TILE_GAP": "3%" } }
 ```
 
-The column count is chosen from the window count and the monitor's shape, so two windows on an ultrawide become two tall columns and eight become a 4×2 grid. `--cols` overrides it. The target monitor defaults to the one under the app's front window; `--screen N` uses the index from `--list`.
+`--region` tiles into part of the monitor instead of all of it: `left`, `right`, `top`, `bottom`, the four corners (`top-left` …), `left-third` / `middle-third` / `right-third`, `left-two-thirds` / `right-two-thirds`, or `x,y,w,h` in percent of the usable area. `--front N` keeps only the N frontmost windows and leaves the others where they are; `--match TEXT` keeps only windows whose title contains TEXT. Gutters stay relative to the whole monitor, so a half-region layout lines up with a full one.
+
+The column count is chosen from the window count and the shape of the area being tiled, so two windows on an ultrawide become two tall columns and eight become a 4×2 grid. `--cols` overrides it. The target monitor defaults to the one under the app's front window; `--screen N` uses the index from `--list`.
 
 Every window line in the output shows the window's current rect and its target rect. After an apply, each line ends with `✓` (`✓ snapped to …` when an app that sizes windows in character cells, such as Terminal, landed a few pixels short), or with `✗` and the rect the app actually settled on when it refused the exact size (apps with a minimum or maximum window size do this).
 
@@ -37,6 +41,8 @@ Every window line in the output shows the window's current rect and its target r
 ```
 /macos:arrange Chrome on the right monitor in three columns with wide gutters
 /macos:arrange spread my VS Code windows out, no gaps
+/macos:arrange two Terminal windows in the left half of my monitor
+/macos:arrange the VS Code window with the docs in the top-right corner of the right monitor
 /macos:arrange Terminal side by side on the OLED, then Slack stacked on the other one — go
 ```
 
