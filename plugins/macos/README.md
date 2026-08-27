@@ -22,7 +22,7 @@ Takes every on-screen window of one app and lays them out as equal cells that fi
 
 The column count is chosen from the window count and the monitor's shape, so two windows on an ultrawide become two tall columns and eight become a 4×2 grid. `--cols` overrides it. The target monitor defaults to the one under the app's front window; `--screen N` uses the index from `--list`.
 
-Every window line in the output shows the window's current rect and its target rect. After an apply, each line ends with `✓`, or with `✗` and the rect the app actually settled on when it refused the exact size (apps with a minimum window size do this).
+Every window line in the output shows the window's current rect and its target rect. After an apply, each line ends with `✓` (`✓ snapped to …` when an app that sizes windows in character cells, such as Terminal, landed a few pixels short), or with `✗` and the rect the app actually settled on when it refused the exact size (apps with a minimum or maximum window size do this).
 
 ### Permissions
 
