@@ -1,7 +1,7 @@
 ---
 name: tile
 description: Tile every on-screen window of one app into an even grid on one monitor (macOS). Runs only when the user types /macos:tile.
-argument-hint: <App Name> [--cols N] [--screen N] [--gap PX] [--dry-run] [--list]
+argument-hint: <App Name> [--cols N] [--screen N] [--gap PX] [--margin PX] [--dry-run] [--list]
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/skills/tile/tile.js:*)
 ---

@@ -15,7 +15,8 @@ ObjC.import('ApplicationServices');
 ObjC.import('stdlib');
 
 var CELL_ASPECT = 1.6;  // preferred cell width/height when choosing a column count
-var MIN_WIN     = 50;   // CGWindowList: ignore helper windows smaller than this (px)
+var MIN_WIN     = 50;   // CGWindowList: ignore helper windows smaller than this (px); also the smallest sane cell
+var DEFAULT_GAP = 12;   // px gutter between windows and at the monitor edges; env TILE_GAP overrides, --gap 0 is edge-to-edge
 var TOL         = 16;   // px: apps that size windows in character cells (Terminal, editors) land a few px short — still tiled
 
 var USAGE = [
@@ -25,7 +26,8 @@ var USAGE = [
   '               multi-word names may be unquoted). Use --list to see candidates.',
   '  --cols N     force N columns (default: chosen from window count and monitor shape)',
   '  --screen N   monitor index from --list (default: the one under the app\'s front window)',
-  '  --gap PX     gap between cells in pixels (default 0)',
+  '  --gap PX     gutter between windows and at the monitor edges (default 12; env TILE_GAP)',
+  '  --margin PX  outer gutter only, when it should differ from --gap (env TILE_MARGIN)',
   '  --dry-run    print the plan, move nothing (needs no permissions)',
   '  --list       list monitors and running apps with their on-screen window counts',
   '  --relay      always exit 0 (the /macos:tile skill uses this so the model can relay any message)',
@@ -67,11 +69,17 @@ function str(v) { try { var s = ObjC.unwrap(v); return typeof s === 'string' ? s
 function r(n) { return Math.round(n); }
 function fmt(b) { return '(' + r(b.x) + ',' + r(b.y) + ' ' + r(b.w) + '×' + r(b.h) + ')'; }
 function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
+function envInt(name, dflt) {
+  var v = (ObjC.deepUnwrap($.NSProcessInfo.processInfo.environment) || {})[name];
+  if (v === undefined || v === '') return dflt;
+  var n = parseInt(v, 10); if (isNaN(n) || n < 0) die(name + ' must be a non-negative integer, got: ' + v);
+  return n;
+}
 function clip(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
 // ---------------------------------------------------------------- args
 function parseArgs(argv) {
-  var o = { app: null, cols: null, screen: null, gap: 0, dry: false, list: false, help: false };
+  var o = { app: null, cols: null, screen: null, gap: envInt('TILE_GAP', DEFAULT_GAP), margin: envInt('TILE_MARGIN', null), dry: false, list: false, help: false };
   var words = [];
   for (var i = 0; i < argv.length; i++) {
     var a = String(argv[i]), v = null, eq = a.indexOf('=');
@@ -84,12 +92,15 @@ function parseArgs(argv) {
     else if (a === '--cols' || a === '-c') o.cols = val();
     else if (a === '--screen' || a === '-s') o.screen = val();
     else if (a === '--gap' || a === '-g') o.gap = val();
+    else if (a === '--margin' || a === '-m') o.margin = val();
     else if (a.charAt(0) === '-') die('Unknown option: ' + a + '\n\n' + USAGE);
     else words.push(a);
   }
   if (words.length) o.app = words.join(' ');
   if (o.cols !== null && o.cols < 1) die('--cols must be ≥ 1');
   if (o.gap < 0) die('--gap must be ≥ 0');
+  if (o.margin === null) o.margin = o.gap;
+  if (o.margin < 0) die('--margin must be ≥ 0');
   return o;
 }
 
@@ -195,14 +206,17 @@ function chooseCols(n, usable) {
   }
   return best;
 }
-function layout(n, cols, usable, gap) {
+// gap: space between cells. margin: space between the outer cells and the monitor's usable edge.
+function layout(n, cols, usable, gap, margin) {
   var rows = Math.ceil(n / cols);
-  var cw = Math.floor((usable.w - gap * (cols - 1)) / cols);
-  var ch = Math.floor((usable.h - gap * (rows - 1)) / rows);
+  var x0 = usable.x + margin, y0 = usable.y + margin, W = usable.w - 2 * margin, H = usable.h - 2 * margin;
+  var cw = Math.floor((W - gap * (cols - 1)) / cols);
+  var ch = Math.floor((H - gap * (rows - 1)) / rows);
+  if (cw < MIN_WIN || ch < MIN_WIN) die('Cells would be ' + cw + '×' + ch + ' px — reduce --gap, --margin or --cols.');
   var cells = [];
   for (var i = 0; i < n; i++) {
     var col = i % cols, row = Math.floor(i / cols);
-    cells.push({ x: usable.x + col * (cw + gap), y: usable.y + row * (ch + gap), w: cw, h: ch });
+    cells.push({ x: x0 + col * (cw + gap), y: y0 + row * (ch + gap), w: cw, h: ch });
   }
   return { cols: cols, rows: rows, cw: cw, ch: ch, cells: cells };
 }
@@ -258,13 +272,13 @@ function main(argv) {
   } else screen = screenFor(wins[0], scr);
 
   var cols = o.cols !== null ? Math.min(o.cols, wins.length) : chooseCols(wins.length, screen.usable);
-  var L = layout(wins.length, cols, screen.usable, o.gap);
+  var L = layout(wins.length, cols, screen.usable, o.gap, o.margin);
   var empty = L.cols * L.rows - wins.length;
 
   out('App:     ' + app.name + ' (' + app.bundle + ', pid ' + app.pid + ')');
   out('Monitor: ' + screen.index + ' of ' + scr.length + ' · ' + screen.name + ' · usable ' + fmt(screen.usable));
   out('Layout:  ' + wins.length + ' window' + (wins.length === 1 ? '' : 's') + ' → ' + L.cols + ' col × ' + L.rows + ' row, cell ' + L.cw + '×' + L.ch
-      + (o.gap ? ', gap ' + o.gap : '') + (empty ? ', ' + empty + ' empty cell' + (empty === 1 ? '' : 's') + ' in last row' : ''));
+      + ', gap ' + o.gap + ', margin ' + o.margin + (empty ? ', ' + empty + ' empty cell' + (empty === 1 ? '' : 's') + ' in last row' : ''));
   out('Windows (front → back, via ' + source + '):');
 
   var moved = 0, refused = 0, failed = 0;
