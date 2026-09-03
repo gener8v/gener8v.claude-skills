@@ -1,11 +1,12 @@
 # gener8v macOS utilities
 
-Desktop utilities for Claude Code on macOS. Two skills: **`/macos:tile`** does the work — it lays an app's windows out in an even grid; **`/macos:arrange`** turns plain language into the right `tile` command, shows you the plan, and applies it when you say so. No third-party window manager needed.
+Desktop utilities for Claude Code on macOS. **`/macos:tile`** does the work — it lays an app's windows out in an even grid; **`/macos:arrange`** turns plain language into the right `tile` command, shows you the plan, and applies it when you say so; **`/macos:watch`** puts every running Claude Code session in one place — a banner when one wants you, and a live feed of them all. No third-party window manager needed.
 
 ```
 /macos:tile Terminal --front 2 --cols 1 --region 0,0,25,100 --save dev
 /macos:arrange two terminals stacked in the left quarter of my monitor, save it as dev
 /macos:tile --run dev
+/macos:watch --install
 ```
 
 ## `/macos:tile`
@@ -86,6 +87,34 @@ It knows the difference between *the left monitor* (`--screen`) and *the left si
 
 Because `arrange` has a description, Claude also reaches for it when you describe a layout in conversation. `/macos:tile` stays a typed command only.
 
+## `/macos:watch`
+
+```
+/macos:watch                 status: is the hook on, how many sessions are live, recent alerts
+/macos:watch --install       turn on the "a session wants you" banner + log
+/macos:watch --alerts 20     the last 20 alerts
+/macos:watch --feed          live feed of every session's messages (run this yourself)
+/macos:watch --uninstall     remove the hook
+```
+
+Running several Claude Code sessions across several windows means output you never see and questions you never notice. `watch` gives you one place for both halves.
+
+**The alert half.** `--install` writes a standalone notifier to `~/.claude/hooks/macos-session-alert.sh` and adds a `Notification` hook to `~/.claude/settings.json`. From then on, whenever any session goes idle waiting on you, it appends a line to `~/.claude/session-alerts.log` and raises a macOS banner titled with the project:
+
+    09-03 14:19:41  falllinespecialty.product.mutualassurance  f556e1c9  Claude is waiting for your input
+
+Follow it with `tail -f ~/.claude/session-alerts.log`. Sessions already running pick the hook up — you do not need to restart them.
+
+The hook is opt-in on purpose: installing the plugin gives you the command, not the banners. `--install` merges into `settings.json` without disturbing hooks you already have, is safe to run twice, and `--uninstall` removes only the entry it added.
+
+**The feed half.** `--feed` follows every session's transcript at once, one line per message — `›` you, `‹` Claude, `[Tool]` a tool call:
+
+    18:23:09  falllinespecialty.product.mutu  ‹ Confirmed against the real bucket: an empty prefix reaches 728 keys…
+    18:23:22  falllinespecialty.product.mutu  › Do the UX work before I register
+    18:23:41  gener8v.claude-skills           ‹ [Bash]
+
+It backfills the last 25 messages in timestamp order so a quiet moment does not look like a broken pipe, then follows live. It reads the transcript files Claude Code already writes, so it needs no permissions and adds nothing to a session. It is read-only: a feed shows you what happened, it cannot answer a prompt for you.
+
 ## Permissions
 
 The dry run needs no permissions. Applying needs **Accessibility** for the app that launched Claude Code — macOS attributes the script to that app, not to `osascript`:
@@ -106,6 +135,8 @@ The script detects which app it is running under and names it in the message. Th
 
 `/macos:tile` runs the script before the model sees anything (dynamic context in `SKILL.md`); the model only relays the result. `/macos:arrange` gets the inventory the same way, then runs the script through the Bash tool, which is pre-approved for that one executable and nothing else.
 
+`skills/watch/watch.sh` is plain bash plus `jq`. It reads session transcripts from `~/.claude/projects/*/*.jsonl` and never writes to them. The notifier it installs is a standalone copy rather than a path into the plugin, because the plugin cache directory carries the version number and moves on every update — a hook pointing into it would break the next time you upgrade.
+
 The script also works on its own: `skills/tile/tile.js Terminal --dry-run`. Exit codes: `0` ok, `1` usage or app error, `2` permission needed; `--relay` (used by the skills) always exits 0 so the message reaches the model.
 
 ## Limits
@@ -116,6 +147,9 @@ The script also works on its own: `skills/tile/tile.js Terminal --dry-run`. Exit
 - Windows in native full-screen live in their own Space and are not touched.
 - Some Electron apps ignore Accessibility resizing entirely; the output shows where they settled.
 - Before Accessibility is granted, the dry run's window list (from CGWindowList) can include a helper window that Accessibility later filters out, so that plan is approximate.
+- `watch --feed` fixes its file list at launch: a session started afterwards does not appear until you restart the feed.
+- `watch` needs `jq` (`brew install jq`).
+- A blocking permission prompt still belongs to the terminal that raised it. `watch` tells you which session is waiting; only that window's keyboard can answer it.
 
 ## Installation
 
