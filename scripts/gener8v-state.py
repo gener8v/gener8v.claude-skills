@@ -33,6 +33,10 @@ import sys
 # --------------------------------------------------------------------------- constants
 
 ID_RE = re.compile(r"\b([A-Z]{2,4})-(REQ|NFR)-(\d{3,})\b")
+# An ID *definition*: the bold identifier that opens a list item, as the Specification and
+# Brownfield skills write it. ID_RE matches any mention, including a cross-document reference
+# (CONVENTIONS.md §4), which must not be read as this document allocating that prefix.
+DEF_RE = re.compile(r"^[ \t]*[-*][ \t]+\*\*([A-Z]{2,4})-(REQ|NFR)-(\d{3,})\*\*", re.M)
 TICKET_HEAD_RE = re.compile(r"^###\s+(TICKET-\d{3,})\s*:", re.M)
 TICKET_H1_RE = re.compile(r"^#\s+(TICKET-\d{3,})\s*:\s*(.*)$", re.M)
 TICKET_FILE_RE = re.compile(r"^(TICKET-\d{3,})\.md$")
@@ -441,7 +445,7 @@ def scan(root):
         slug = slugify(area)
         sp = os.path.join(g, "specifications", f"{slug}.md")
         stext = read(sp) if exists(sp) else ""
-        ids = ID_RE.findall(stext)
+        ids = DEF_RE.findall(stext)
         a = {
             "name": area,
             "specification": rel(g, sp),
@@ -813,9 +817,12 @@ def cmd_lint(args):
     prefix_owner, spec_ids = {}, {}
     for p in sorted(glob.glob(os.path.join(g, "specifications", "*.md"))):
         slug = os.path.splitext(os.path.basename(p))[0]
-        ids = ID_RE.findall(read(p))
+        ids = DEF_RE.findall(read(p))
         prefixes = {pre for pre, _, _ in ids}
         spec_ids[slug] = {f"{pre}-{k}-{num}": k for pre, k, num in ids}
+        if len(ids) != len(spec_ids[slug]):
+            dupes = sorted({f"{p_}-{k}-{n}" for p_, k, n in ids if [f"{a}-{b}-{c}" for a, b, c in ids].count(f"{p_}-{k}-{n}") > 1})
+            errors.append(f"specifications/{slug}.md defines the same identifier more than once: {', '.join(dupes)}")
         if len(prefixes) > 1:
             warns.append(f"specifications/{slug}.md uses several requirement prefixes: {', '.join(sorted(prefixes))}")
         for pre in prefixes:
