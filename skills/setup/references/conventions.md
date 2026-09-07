@@ -186,7 +186,30 @@ pass rate, deferred reviews, approvals pending, sweep findings, lead time (from 
 (from `runs.jsonl`). Nothing in the pipeline asks a person or a model to record a metric; if a number is
 worth knowing it is worth deriving from the artifacts.
 
-## 11. Keep skills engagement-neutral
+## 11. The pipeline advances itself
+
+A skill whose inputs exist and whose output is missing does not wait to be asked. `pipeline-state.yaml`
+computes `next_steps` from the artifacts, the SessionStart hook puts them in front of every session, and the
+expected behaviour is to **act on them, not report them**. A session that lists what could be done next and
+stops has done half its job.
+
+Exactly three things stop for a person, and they stop because a machine cannot supply what they need:
+
+| Stops for a person | Why |
+|---|---|
+| **Approving an artifact** | Approval is a judgement about scope or architecture; the skill presents the artifact and asks (§7) |
+| **Delivering source** | Writing code into the repository is the user's to authorise; `delivery` is reserved for explicit invocation |
+| **Accepting a risk** | A security finding accepted rather than fixed names the person who accepted it (§7) |
+
+Everything else — specification, constraints, dependencies, technical design, ticket breakdown, the reviews,
+sweeps, rot watches, audits and orchestration — runs on the recommendation without a prompt. Where a
+recommended step depends on an unresolved question, resolve what can be resolved, state the assumption, and
+proceed; a blocked step is one where proceeding under any assumption would be wrong, and those are rare.
+
+Batching is fine and usually right: several recommended steps in one pass beats one per turn. Announce what
+was done, not what could be.
+
+## 12. Keep skills engagement-neutral
 
 Skill bodies describe the method. Client systems, product names, decision-log IDs from a particular
 engagement and real dataset names belong in an example file, not in the rules an agent will generalise from.
