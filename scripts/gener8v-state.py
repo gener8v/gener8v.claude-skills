@@ -404,6 +404,8 @@ def scan(root):
         "audits": sorted(rel(g, p) for p in glob.glob(os.path.join(g, "audits", "*.md"))),
         "flows": sorted(rel(g, p) for p in glob.glob(os.path.join(g, "flows", "*.md"))),
         "sweeps": sorted(rel(g, p) for p in glob.glob(os.path.join(g, "sweeps", "*.md"))),
+        "rot_reports": sorted(rel(g, p) for p in glob.glob(os.path.join(g, "rot", "rot-*.md"))),
+        "rot_baseline": rel(g, os.path.join(g, "rot", "baseline.md")) if exists(os.path.join(g, "rot", "baseline.md")) else None,
         "assessments": sorted(rel(g, p) for p in glob.glob(os.path.join(g, "reviews", "*-assessment.md"))),
         "legacy_layout": bool(glob.glob(os.path.join(g, "tickets", "*")) or glob.glob(os.path.join(g, "delivery", "*.md"))),
     }
@@ -572,6 +574,14 @@ def scan(root):
         add("planning", "first change", "Brownfield baseline complete — open a change for the first piece of new work")
     if n > 1 and not cc["dependency_map"] and totals["specs"] > 0:
         add("dependencies", "PRD", "Multiple capability areas and no dependency map (optional for light scope)")
+    delivered_total = sum(ch["progress"]["delivered"] for ch in state["changes"].values())
+    if delivered_total:
+        if not cc["rot_baseline"]:
+            add("rot-watch", "delivered code", "Code has been delivered and no rot baseline exists — record one; the first run reports nothing by design")
+        else:
+            since = delivered_total - _rot_baseline_delivered(g)
+            if since >= 3:
+                add("rot-watch", "delivered code", f"{since} deliveries since the last rot watch — rot is a trend and only shows over an interval")
     if stage in ("reviewed",) and not cc["audits"]:
         add("audit", "pipeline", "Every change is complete; run a cross-stage audit")
     state["next_steps"] = steps
@@ -678,6 +688,16 @@ def public_state(state):
         for e in ch.get("deliveries", {}).values():
             e.pop("amended_after_review", None)
     return out
+
+
+def _rot_baseline_delivered(g):
+    """Deliveries recorded in the rot baseline's header, so the interval since it is knowable.
+
+    The baseline is written by the rot-watch skill with a `**Deliveries:** N` line. A baseline
+    without one is read as 0, which recommends a watch — the safe direction, since a watch that
+    finds nothing costs a run and a watch that never happens costs the codebase."""
+    m = re.search(r"^\*\*Deliveries:\*\*\s*(\d+)", read(os.path.join(g, "rot", "baseline.md")), re.M)
+    return int(m.group(1)) if m else 0
 
 
 def cmd_state(args):
