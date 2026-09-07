@@ -193,7 +193,7 @@ Technical decisions must respect the constraints identified by the Constraints s
 
 10. **Flag Unknowns**: Technical questions that can't be answered without prototyping, vendor evaluation, or stakeholder input go to Open Technical Questions.
 
-11. **Write as Draft, Record Approval**: Write the document with `**Status:** Draft` and `**Approved by:** pending`. The Architect approves technical design (`CONVENTIONS.md` §7); when the user approves in conversation, update both lines — `**Status:** Approved`, `**Approved by:** Architect — <name>, YYYY-MM-DD`. Approval never blocks the next stage; Audit raises a Warning (never a block) when a stage was produced from an unapproved upstream artifact.
+11. **Write as Draft, Record Approval**: Write the document with `**Status:** Draft` and `**Approved by:** pending`. The Architect approves technical design (`CONVENTIONS.md` §7). **Ask, do not wait.** Present the artifact and request approval before the session moves on to another area, another skill, or another run — an artifact left `Draft` because nobody was asked is indistinguishable in the record from one the user declined to approve. When the user approves in conversation, update both lines — `**Status:** Approved`, `**Approved by:** Architect — <name>, YYYY-MM-DD`. Approval never blocks the next stage; Audit raises a Warning (never a block) when a stage was produced from an unapproved upstream artifact.
 
 ## Example
 

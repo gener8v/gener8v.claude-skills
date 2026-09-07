@@ -210,7 +210,7 @@ The PRD describes the whole product as it should be after every change so far; i
 
 10. **Write the Change Brief**: Write `.gener8v/changes/<change-slug>/change.md` in the format above: `**Status:** Draft`, `**Approved by:** pending`, every Affected Capability Areas row at `(pending specification)`, the Priority Cut filled from the user's stated must / should / could (ask when it is missing), and a Change Log line `opened (Planning)`.
 
-11. **Record Approval**: When the user approves the PRD or the brief in conversation, set `**Status:** Approved` and `**Approved by:** Product Owner — <name>, YYYY-MM-DD` on that document. Until then the record says `Draft`, and Audit warns if downstream stages are produced from it.
+11. **Record Approval**: **Ask, do not wait.** Present the artifact and request approval before the session moves on to another area, another skill, or another run — an artifact left `Draft` because nobody was asked is indistinguishable in the record from one the user declined to approve. When the user approves the PRD or the brief in conversation, set `**Status:** Approved` and `**Approved by:** Product Owner — <name>, YYYY-MM-DD` on that document. Until then the record says `Draft`, and Audit warns if downstream stages are produced from it.
 
 ## Example
 
