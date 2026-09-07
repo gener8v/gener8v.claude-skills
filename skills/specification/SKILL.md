@@ -196,7 +196,7 @@ The specification describes the area as it should be, across every change that h
 9. **Flag Unknowns**: Move ambiguity to Open Questions; document assumptions.
 10. **Review for Completeness**: Ensure standalone understandability.
 11. **Update the Change Brief**: After writing the specification, replace this area's `(pending specification)` cell in the brief's `## Affected Capability Areas` table with the real deltas — `Adds <IDs>; Modifies <IDs>; Withdraws <IDs>` (use `—` for an empty group, ranges like `SR-REQ-011..012` for runs) — and append a `## Change Log` line: `YYYY-MM-DD — <PFX> specification amended: adds …, modifies …, withdraws … (Specification)`.
-12. **Record Approval**: Present the specification to the user for Product Owner approval. When they approve in conversation, set `**Status:** Approved` and `**Approved by:** Product Owner — <name>, YYYY-MM-DD` in Source Context; until then the lines stay `Draft` / `pending`, and Audit will warn if tickets are cut from a Draft specification.
+12. **Record Approval**: Present the specification to the user for Product Owner approval. **Ask, do not wait.** Present the artifact and request approval before the session moves on to another area, another skill, or another run — an artifact left `Draft` because nobody was asked is indistinguishable in the record from one the user declined to approve. When they approve in conversation, set `**Status:** Approved` and `**Approved by:** Product Owner — <name>, YYYY-MM-DD` in Source Context; until then the lines stay `Draft` / `pending`, and Audit will warn if tickets are cut from a Draft specification.
 
 ## Example
 

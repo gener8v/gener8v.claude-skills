@@ -173,7 +173,7 @@ Where possible, cite the source of a constraint (regulation name, API documentat
 
 9. **Review for Completeness**: Ensure each constraint has rationale and impact. Remove constraints that don't connect to the analyzed document.
 
-10. **Record Approval State**: Write `**Status:** Draft` and `**Approved by:** pending` in Source Context. When the user, acting as Architect, approves the analysis in conversation, update both lines to `**Status:** Approved` and `**Approved by:** Architect — <name>, YYYY-MM-DD` (`CONVENTIONS.md` §7). Approval never blocks downstream skills; the record simply says which state the analysis is in.
+10. **Record Approval State**: Write `**Status:** Draft` and `**Approved by:** pending` in Source Context. **Ask, do not wait.** Present the artifact and request approval before the session moves on to another area, another skill, or another run — an artifact left `Draft` because nobody was asked is indistinguishable in the record from one the user declined to approve. When the user, acting as Architect, approves the analysis in conversation, update both lines to `**Status:** Approved` and `**Approved by:** Architect — <name>, YYYY-MM-DD` (`CONVENTIONS.md` §7). Approval never blocks downstream skills; the record simply says which state the analysis is in.
 
 ## Example
 

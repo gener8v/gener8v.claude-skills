@@ -153,8 +153,11 @@ what and a team can split them later.
 | Security | risk acceptance on a security finding | `**Risk accepted by:**` on the finding |
 | Reviewer | the three reviews' findings phases — always a different context from the builder | the reviewer agents; the report names the agent |
 
-The skill that writes an artifact writes `**Status:** Draft` and `**Approved by:** pending`; when the user
-approves in conversation the skill updates both lines. Approval is a gate for the *next* stage only in the
+The skill that writes an artifact writes `**Status:** Draft` and `**Approved by:** pending`, then **presents
+the artifact and asks the user to approve it before the session moves on** — to another capability area,
+another skill, or another run. Approval is solicited, never merely awaited: an artifact left `Draft` because
+nobody was asked reads in the record exactly like one the user declined to approve, and the two mean opposite
+things. When the user approves in conversation the skill updates both lines. Approval is a gate for the *next* stage only in the
 sense that Audit raises a Warning when tickets were cut from a Draft specification or a delivery started
 from a Draft change brief; it never blocks — the record simply says so.
 
