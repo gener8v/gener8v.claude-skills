@@ -435,14 +435,14 @@ cp -r gener8v.claude-skills/skills/* ~/.claude/skills/
 
 This installs the nineteen skills and nothing else: no hooks, no agents, no `gener8v-state.py`. Orchestrate maintains `pipeline-state.yaml` by hand, the Flow Mapping gate is at `~/.claude/skills/flow-mapping/scripts/validate-flows.sh`, and there is no update mechanism — `scripts/check-install.sh` reports drift.
 
-## Other plugins in this marketplace
+## The macOS utilities moved
 
-### [macos](./plugins/macos/) — `/macos:tile`, `/macos:arrange`
-
-Desktop utilities for Claude Code on macOS, independent of the pipeline. `/macos:tile <App>` lays an app's windows out in an even grid on one monitor — or a region of it (`--region left`, `top-right`, `0,0,25,100`), for some of the windows (`--front 2`, `--match docs`), with proportional gutters — and can save the result as a named layout to replay later (`--save dev`, `--run dev`). `/macos:arrange <plain language>` reads the live monitor, app and layout inventory, turns "two terminals stacked in the left quarter of my monitor" into the exact `/macos:tile` command, dry-runs it, shows both readings when a phrase is ambiguous, and applies on confirmation. `--dry-run` never needs permissions; applying needs Accessibility — see [plugins/macos/README.md](./plugins/macos/README.md).
+`/macos:tile`, `/macos:arrange` and `/macos:watch` have nothing to do with the pipeline, so they now live in their own repository: [gener8v/gener8v.claude-skills.macos](https://github.com/gener8v/gener8v.claude-skills.macos). This marketplace no longer lists them. If you installed `macos@gener8v-claude-skills`, switch like this:
 
 ```bash
-claude plugin install macos@gener8v-claude-skills
+claude plugin uninstall macos@gener8v-claude-skills
+claude plugin marketplace add gener8v/gener8v.claude-skills.macos
+claude plugin install macos@gener8v-macos
 ```
 
 ## For maintainers
