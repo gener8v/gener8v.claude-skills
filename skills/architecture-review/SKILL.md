@@ -1,8 +1,11 @@
 ---
 name: architecture-review
-description: "Adversarial, code-grounded review of an existing system's architecture: is it real (do ADRs match the code), is it right for a system of this nature, what are its inherent limitations and what concretely would have been better — every alternative proven against the code. Use for 'is our architecture sound', technical due diligence, before a major architectural commitment, or at milestone health checks."
+description: "Adversarial, code-grounded review of an existing system's architecture: do the ADRs match the code, is the design right for a system of this nature, what are its inherent limitations and what concretely would have been better, every alternative proven against the code. Use when asked 'is our architecture sound' or 'what should we change about the design', for technical due diligence, before a major architectural commitment, or at milestone health checks. Not for one delivered ticket (code-review), decay across deliveries (rot-watch) or defect hunting (defect-sweep)."
 argument-hint: "[system slug]"
+context: fork
+effort: xhigh
 ---
+
 # Architecture Review Skill
 
 ## Purpose
@@ -105,6 +108,13 @@ Steelman every critique and include an honest "what the team got right." Note wh
 ## Example (abbreviated — from a real review)
 
 > **T1 — Silent ownership of execution correctness, mis-invested.** The product is an LLM data-pipeline, but it runs on a task queue (`arq`), so the team owns durability by hand. Reading the runtime: ~740 of `orchestrator.py`'s 1,252 lines are irreducible domain persistence **no workflow engine would save** (retract the reflexive "adopt Dagster"). The genuine findings are opposite-signed: they *over-built* a DAG substrate (Kahn's sort, cycle detection) to run a **strictly linear** pipeline (`next_stage()` = `index+1`), and *under-built* recovery — `find_stale_running_stages()` is written, tested, and **never wired** (grep: referenced only by tests + `__all__`), so a dead worker strands an audit until a human notices. Better-decision is therefore **not** "adopt a vendor" but "wire the recovery you already built (~1 hr), add backoff, and write the ADR naming the *trigger* for a durable executor (pipeline goes non-linear / resume-from-step becomes an SLA need)." Steelman: for a tiny team migrating off a prototype, hand-rolled-but-wired is right.
+
+## Troubleshooting
+
+- **The review assessed the wrong system, or ignored what the conversation was about.** This skill runs in a forked subagent that sees the skill and its arguments, not the conversation. Put the system slug and the focus in the argument — `/gener8v:architecture-review ingestion — the tenancy model and the job queue`. With no slug, take the repository directory name and state that choice in the Verdict.
+- **Orchestrate does not list the assessment.** It globs `.gener8v/reviews/*-assessment.md`; the file must be `.gener8v/reviews/<system-slug>-architecture-assessment.md`. A report written elsewhere, or under another suffix, is invisible to it and to the next re-run's carry-forward.
+- **A re-run dropped the previous theses.** Revisions requires carrying each one forward as addressed, still open or retracted. Read the existing `<system-slug>-architecture-assessment.md` before writing; a re-run under a different slug starts a second assessment instead of replacing the first.
+- **The core subsystem is too large to read deeply in one run.** The method fails when the control plane is skimmed. Narrow the argument to the subsystem that carries the system's nature, read it properly, and name what was not read under Open Questions — an unread subsystem left unmentioned reads as one that passed.
 
 ## Integration with Other Skills
 

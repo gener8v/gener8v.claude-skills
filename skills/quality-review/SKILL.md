@@ -1,8 +1,10 @@
 ---
 name: quality-review
-description: "Review delivered code for engineering quality — organization, readability, error handling, tests, consistency with the codebase's patterns — independent of the specification. Use after a delivery in parallel with code-review and security-review, or on any files the user points at."
-argument-hint: "<capability area> <TICKET-XXX> [in <change-slug>] | <files>"
+description: "Review delivered code for engineering quality (organization, readability, error handling, tests, consistency with the codebase's patterns) independent of the specification. Use after a delivery in parallel with code-review and security-review, or on any files the user points at, such as 'is this module maintainable' or 'review this file for readability and tests'. Not for checking a delivery against its ticket (code-review), vulnerabilities (security-review) or decay across many deliveries (rot-watch)."
+argument-hint: "[capability area] [TICKET-XXX] [in change-slug] | [files]"
+effort: xhigh
 ---
+
 # Quality Review Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -50,84 +52,7 @@ The report is written as soon as findings are drafted (all `Open`) and updated f
 
 ## Output Format
 
-Produce a markdown document with the following structure:
-
-```markdown
-# [Ticket ID]: [Ticket Title] — Quality Review
-
-## Summary
-
-[2-3 sentences: what was reviewed, overall quality assessment, finding count by severity.]
-
-**Files Reviewed:**
-- [file path]
-- [file path]
-
-**Findings:** [Total count]
-**Critical:** [Count] | **Concerns:** [Count] | **Suggestions:** [Count]
-
-## Quality Assessment
-
-### Code Organization
-
-**Rating:** [Strong / Adequate / Needs Improvement]
-**Notes:** [Assessment of module structure, file organization, separation of concerns,
-single responsibility adherence]
-
-### Readability
-
-**Rating:** [Strong / Adequate / Needs Improvement]
-**Notes:** [Assessment of naming conventions, code clarity, function length,
-cognitive complexity, self-documenting code]
-
-### Error Handling
-
-**Rating:** [Strong / Adequate / Needs Improvement]
-**Notes:** [Assessment of error handling completeness, consistent patterns,
-meaningful error messages, appropriate propagation]
-
-### Test Coverage
-
-**Rating:** [Strong / Adequate / Needs Improvement / Not Present]
-**Notes:** [Assessment of test presence, coverage of key paths, edge case
-testing, test quality and maintainability. Include the executed result: which commands were run and their exit codes.]
-
-### Observability & Operability
-
-**Rating:** [Strong / Adequate / Needs Improvement]
-**Notes:** [Assessment of logging (what is logged, at what level, with what
-context), metrics and health signals, and error surfaces — whether a failure
-in this code is visible, attributable and actionable to whoever operates it]
-
-## Findings
-
-### QR-001: [Finding title]
-
-**Category:** [Readability / Error Handling / Naming / DRY / SOLID / Performance / Maintainability / Testing / Patterns / Observability]
-**Severity:** [Critical / Concern / Suggestion]
-**Location:** [root-relative path:line or function — e.g. `api/src/search/query.ts:42`]
-**Description:** [What the issue is — specific, not aesthetic]
-**Impact:** [Why this matters for maintainability, reliability, or performance]
-**Recommendation:** [Specific improvement with example if helpful]
-**Status:** [Open / Resolved / Deferred → TICKET-NNN or reason / Dismissed]
-**Resolution:** [What was done, if resolved — filled in during resolution]
-
----
-
-### QR-002: ...
-
-## Resolution Log
-
-| Finding | Decision | Action Taken | File Updated |
-|---------|----------|-------------|--------------|
-| QR-001 | [User's decision] | [What was changed] | [File path] |
-| QR-002 | Deferred | — | — |
-
-## Verdict
-
-**Result:** [Approved / Approved with Notes / Changes Required]
-**Unresolved Findings:** [Count and severity breakdown, if any]
-```
+Write the report in the shape of `assets/quality-review-report.md` — Read it before writing and follow it exactly, headings and status lines included. `gener8v-state.py` parses its `**Result:**` line for the verdict and counts its `### QR-NNN` headings and `**Severity:**` lines for the metrics, so none of the three may be renamed or reformatted.
 
 ---
 
@@ -196,6 +121,14 @@ Do not flag performance concerns without considering the actual usage context. A
 A quality review of `support-search/search-and-retrieval/TICKET-001` (query input interface) — one delivered file, no tests, five rated categories, a Critical finding that blocks the ticket and a Suggestion, written under `changes/support-search/reviews/`. The full worked example is in `references/example.md` (relative to this skill's directory). Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **Orchestrate still lists the quality review as missing after the report was written.** The state script opens exactly `.gener8v/changes/<change-slug>/reviews/<area-slug>-ticket-nnn-quality-review.md` — area slug, lowercase `ticket-nnn`, inside the ticket's change. Any other name or directory is invisible to it. Move or rename the file; never leave two copies.
+- **The user pointed at files with no ticket behind them.** There is no change, area or ticket to build the report path from, and no delivery record to append `## Post-Review Amendments` to. Ask where the report goes, state in its Summary that no ticket is attached (Orchestrate will not count it), and record every applied change in the Resolution Log instead.
+- **The test, lint or type-check commands will not run.** Step 8 takes them from `context.md`'s `## Repositories` table or the repository's own scripts. When neither yields a command that runs, record what was tried and what it printed under Test Coverage, and rate the tests from their content. Do not report results that were not produced; tests that exist but cannot be run are a Testing finding in their own right.
+- **The surrounding code has no single pattern to be consistent with.** Patterns Over Rules does not mean choosing one style and flagging every deviation. Raise the inconsistency once, as a Patterns finding on the module, and judge the delivery against the style of its nearest neighbours.
+- **The `quality-reviewer` agent returned without a report path.** The findings phase ends at step 13 by writing the report; an agent that stops at its turn limit returns partial output instead. Resume or re-launch it on the same ticket, or run steps 1–13 in the main session, before starting step 14.
 
 ## Integration with Other Skills
 

@@ -1,8 +1,9 @@
 ---
 name: planning
-description: "Turn a description of a feature, product or system into a PRD at .gener8v/prd.md (3-7 capability areas, user scenarios, scope boundaries, open questions) and open a change brief at .gener8v/changes/<change-slug>/change.md with its priority cut. Use when the user describes what they want built: a greenfield product, a second initiative on an existing PRD, or the first feature after brownfield onboarding. To onboard an existing codebase that has no PRD, use brownfield instead."
+description: "Turn a description of a feature, product or system into a PRD at .gener8v/prd.md (3-7 capability areas, user scenarios, scope boundaries, open questions) and open a change brief under .gener8v/changes/ with its priority cut. Use when the user describes something new they want built, such as 'I want to build a support portal' or 'add a feature that lets agents export results': a greenfield product, new scope on a project already on the pipeline (Planning opens a new change for it rather than folding it into a change in delivery), or the first feature after brownfield onboarding. Not for onboarding an existing codebase with no PRD (brownfield) or detailing an area the current change already covers (specification)."
 argument-hint: "[what you want built]"
 ---
+
 # Planning Skill
 
 ## Purpose
@@ -32,7 +33,7 @@ Use this skill when:
 **Produces:** Two markdown documents: the living PRD and a change brief
 **Write to:**
 - `.gener8v/prd.md`: the Product Requirements Document (living; amended in place, with a `## Change Log`)
-- `.gener8v/changes/<change-slug>/change.md`: the change brief for this initiative (format below)
+- `.gener8v/changes/<change-slug>/change.md`: the change brief for this initiative (shape in `assets/change-brief.md`)
 **Creates directories:** `.gener8v/` and `.gener8v/changes/<change-slug>/` if they do not exist
 
 **Change slug:** kebab-case, derived from the initiative's title with the slug rule in `CONVENTIONS.md` §3 ("Search relevance v2" → `search-relevance-v2`). Choose it before writing anything: it names the directory every downstream change artifact lives in (`changes/<change-slug>/tickets/`, `changes/<change-slug>/delivery/`, `changes/<change-slug>/reviews/`) and never changes afterwards.
@@ -51,111 +52,15 @@ This file is not required for the pipeline to proceed, but significantly improve
 
 ## Output Format
 
-Produce two markdown documents with the following structures.
+Produce two markdown documents, each from its template in `assets/`. Read the template before writing and follow it exactly, headings, field lines and table columns included: `scripts/gener8v-state.py` parses them.
 
 ### PRD: `.gener8v/prd.md`
 
-```markdown
-# [Descriptive Title]
-
-**Status:** [Draft / Approved]
-**Approved by:** [Product Owner — name, YYYY-MM-DD — or "pending"]
-
-## Problem Context
-
-[2-4 sentences describing the problem or opportunity this work addresses.
-What is the current state? Why does this matter?]
-
-## Goals
-
-[Bulleted list of 2-5 high-level outcomes this work should achieve.
-These are directional, not measurable criteria.]
-
-- The system should...
-- The system should...
-
-## Functional Capabilities
-
-[Group capabilities into logical areas. Each area will be further defined
-by downstream skills. Use "the system should..." framing.]
-
-### [Capability Area 1]
-
-- The system should [verb] [what] [context/condition if needed]
-- The system should...
-
-### [Capability Area 2]
-
-- The system should...
-
-## User Scenarios
-
-[2-4 narrative scenarios that illustrate how the capabilities come together.
-These ground the requirements in realistic usage patterns.]
-
-**Scenario: [Title]**
-[Brief narrative of a user accomplishing something with the system]
-
-## Out of Scope
-
-[Explicitly list what this work does NOT include. This prevents scope creep
-and clarifies boundaries for downstream planning.]
-
-- This work does not include...
-- Future consideration: ...
-
-## Open Questions
-
-[Capture ambiguity, unknowns, and decisions that need stakeholder input.
-These should be resolved before or during detailed specification.]
-
-- [ ] Question about...
-- [ ] Decision needed on...
-
-## Change Log
-
-- YYYY-MM-DD — opened; capability areas [list] (Planning, change: [change-slug])
-- YYYY-MM-DD — [area] added / [area] amended / [area] withdrawn: [why] (Planning, change: [change-slug])
-```
+Write it in the shape of `assets/prd.md`. The state script takes the first `# ` heading as the PRD title, the `**Status:**` line as its approval state, and each `### ` heading under `## Functional Capabilities` as a capability area — the slug of that heading names the area's specification, constraints, technical design and ticket directories. A trailing `*(Withdrawn YYYY-MM-DD)*` is stripped from the name.
 
 ### Change brief: `.gener8v/changes/<change-slug>/change.md`
 
-```markdown
-# [Change title]
-
-**Status:** [Draft / Approved / In Delivery / Complete / Abandoned]
-**Approved by:** [Product Owner — name, YYYY-MM-DD — or "pending"]
-**Opened:** YYYY-MM-DD
-**Slug:** [change-slug]
-
-## Why
-[2–4 sentences: the problem or opportunity, and why now.]
-
-## Outcome
-[2–5 bullets: what is true when this change is complete.]
-
-## Affected Capability Areas
-
-| Area | Kind | Requirements |
-|------|------|--------------|
-| Search & Retrieval | modifies | Adds SR-REQ-011, SR-REQ-012, SR-NFR-002; Modifies SR-REQ-005; Withdraws — |
-| Results Presentation | adds area | (pending specification) |
-
-## Priority Cut
-- **Must:** [the requirements/tickets without which the change is not worth shipping]
-- **Should:** [...]
-- **Could / later:** [...]
-
-## Out of Scope
-- ...
-
-## Open Questions
-- [ ] **OQ-001**: ...
-
-## Change Log
-- YYYY-MM-DD — opened (Planning)
-- YYYY-MM-DD — SR specification amended: adds SR-REQ-011..012 (Specification)
-```
+Write it in the shape of `assets/change-brief.md`. The state script reads its `**Status:**` line and parses the `## Affected Capability Areas` table row by row — area name, kind, requirements cell — to derive the change's areas and which of them are still pending specification; lint checks every requirement ID in a cell against that area's specification.
 
 Planning fills every Affected Capability Areas row's Requirements cell with `(pending specification)`; the `Kind` column is `adds area` or `modifies`. Specification replaces the cell with the real IDs (Adds / Modifies / Withdraws) when it runs for the change and appends its own Change Log line. The state script recommends `specification <area> for <change>` while a cell still says pending.
 
@@ -208,7 +113,7 @@ The PRD describes the whole product as it should be after every change so far; i
 
 9. **Write the PRD, Amending Rather Than Overwriting**: Write `.gener8v/prd.md` with `**Status:** Draft` and `**Approved by:** pending`. If a PRD already existed, confirm every pre-existing capability area is still present (or explicitly withdrawn), and record the change in `## Change Log` with the change slug.
 
-10. **Write the Change Brief**: Write `.gener8v/changes/<change-slug>/change.md` in the format above: `**Status:** Draft`, `**Approved by:** pending`, every Affected Capability Areas row at `(pending specification)`, the Priority Cut filled from the user's stated must / should / could (ask when it is missing), and a Change Log line `opened (Planning)`.
+10. **Write the Change Brief**: Write `.gener8v/changes/<change-slug>/change.md` in the shape of `assets/change-brief.md`: `**Status:** Draft`, `**Approved by:** pending`, every Affected Capability Areas row at `(pending specification)`, the Priority Cut filled from the user's stated must / should / could (ask when it is missing), and a Change Log line `opened (Planning)`.
 
 11. **Record Approval**: **Ask, do not wait.** Present the artifact and request approval before the session moves on to another area, another skill, or another run — an artifact left `Draft` because nobody was asked is indistinguishable in the record from one the user declined to approve. When the user approves the PRD or the brief in conversation, set `**Status:** Approved` and `**Approved by:** Product Owner — <name>, YYYY-MM-DD` on that document. Until then the record says `Draft`, and Audit warns if downstream stages are produced from it.
 
@@ -217,6 +122,14 @@ The PRD describes the whole product as it should be after every change so far; i
 The worked example shows both files Planning writes for the Support Documentation Search System: the living `prd.md` (three capability areas, Status and Change Log lines) and the change brief `changes/support-search/change.md` with its Affected Capability Areas at `(pending specification)` and its Priority Cut. It lives at `skills/planning/references/example.md`. Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **The chosen change slug already names a directory under `.gener8v/changes/`.** Choose another: the slug names every artifact directory of the change and never changes afterwards. If the existing change is the same initiative, this is not a new change — resume it (Orchestrate says where it stands) instead of opening a second brief for the same work.
+- **The user states no must / should / could.** Ask before writing the brief. The Priority Cut is the only place priority enters the pipeline — Specification tags requirements from it and every ticket's `**Priority:**` comes from it — so a cut Planning invents reappears on every ticket as if the Product Owner had set it.
+- **An existing capability area's name no longer fits.** Keep the name and clarify the area in its bullets. The slug of the `### ` heading names the area's specification, constraints, technical design and ticket directories; renaming the heading orphans them, and the state script warns `specifications/<old-slug>.md has no matching capability area in the PRD`. A rename that cannot be avoided is recorded in the Change Log and renames every dependent file with it.
+- **Orchestrate warns `change '<change-slug>' names area '<area-slug>' which is not in the PRD`.** A row in the brief's Affected Capability Areas table does not match a `### ` heading in the PRD — the script slugifies both and compares the slugs. Correct the row's area name, or add the area to the PRD when this change introduces it.
+- **Orchestrate warns `PRD has no '### ' capability areas under '## Functional Capabilities'`.** The section heading was renamed or the areas were written at another heading level. Restore the structure of `assets/prd.md`; until then no area has a slug, and nothing downstream can be located.
 
 ## Integration with Other Skills
 

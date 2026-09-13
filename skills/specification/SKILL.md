@@ -1,8 +1,9 @@
 ---
 name: specification
-description: "Expand one capability area from .gener8v/prd.md into a functional specification with atomic, testable [PREFIX]-REQ-XXX requirements, behaviors, edge cases and open questions at .gener8v/specifications/<slug>.md. Use when a PRD capability area needs elaboration before constraints, technical design or tickets."
-argument-hint: "<capability area> [for <change-slug>]"
+description: "Expand one capability area from .gener8v/prd.md into a functional specification with atomic, testable [PREFIX]-REQ-XXX requirements, behaviors, edge cases and open questions under .gener8v/specifications/. Use when a PRD capability area needs elaboration before constraints, technical design or tickets, or a change brief still marks an area as pending specification, such as 'spec out the search area' or 'write the requirements for billing'. Not for the whole product (planning) or work items (ticket-breakdown)."
+argument-hint: "[capability area] [for change-slug]"
 ---
+
 # Specification Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -42,109 +43,7 @@ Run this skill once per capability area per change. A PRD with 5 capability area
 
 ## Output Format
 
-Produce a markdown document with the following structure:
-
-```markdown
-# [Capability Area Name] Specification
-
-## Overview
-
-[2-3 sentences summarizing what this capability does and why it matters.
-Should be understandable without reading the source PRD.]
-
-## Source Context
-
-**Parent PRD:** [Title of the PRD this capability came from]
-**Requirement prefix:** [XX — recorded here so every downstream skill and the lint use the same one]
-**Status:** [Draft / Approved — the skill writes Draft]
-**Approved by:** [Product Owner — name, YYYY-MM-DD — or "pending"]
-**Related Capabilities:** [List other capability areas this interacts with]
-
-## Functional Requirements
-
-[Detailed enumeration of what the system should do. Group into logical
-subsections. Each requirement should be atomic and testable.]
-
-### [Subsection Name]
-
-- **[XX]-REQ-001** *(must · change: <change-slug>)*: The system should [verb] [what] [conditions/context]
-- **[XX]-REQ-002** *(should · change: <change-slug>)*: The system should...
-- **[XX]-REQ-003**: [A baseline requirement written by Brownfield carries no tag]
-- **[XX]-REQ-004** *(must · change: <change-slug>)*: [Text amended by a later change] *(amended YYYY-MM-DD by <change-slug>)*
-
-[XX] is a 2-4 letter prefix derived from the capability area name
-(e.g., SR for Search & Retrieval, DI for Documentation Ingestion).
-This prefix ensures requirement IDs are unique across the project.
-
-The tag in parentheses carries an optional priority word (`must` / `should` /
-`could`, from the change brief's Priority Cut) and, for every requirement a
-change introduces, the change slug. A requirement whose text a change amends
-appends `*(amended YYYY-MM-DD by <change-slug>)*`. Baseline (Brownfield)
-requirements carry no tag.
-
-## Non-Functional Requirements
-
-[Measurable targets the system must achieve — as distinct from constraints,
-which are boundaries it must operate within. Categories to consider:
-performance, availability, capacity/retention, observability (what must be
-logged or metered), accessibility, and security posture that is a target
-rather than a boundary. Each NFR names a measurable target and how it will be
-verified; an NFR that cannot be verified is an Open Question, not an NFR.
-NFRs take the same priority and change tags as requirements.]
-
-- **[XX]-NFR-001** *(must · change: <change-slug>)*: [measurable target, e.g. p95 search latency ≤ 800 ms at 50 concurrent users] — **verified by:** [benchmark script, load test, lint, audit query]
-- **[XX]-NFR-002** *(should · change: <change-slug>)*: [measurable target] — **verified by:** [...]
-
-## Behaviors & Rules
-
-[Business logic, validation rules, and behavioral specifications.]
-
-### [Behavior Category]
-
-- When [condition], the system should [behavior]
-- If [state], then [outcome]
-
-## Edge Cases & Error Handling
-
-| Scenario | Expected Behavior |
-|----------|-------------------|
-| [Edge case description] | The system should... |
-| [Error condition] | The system should... |
-
-## States & Transitions (if applicable)
-
-[State A] → [Action] → [State B]
-
-## Data Requirements
-
-- The system should capture [data element] for [purpose]
-- The system should display [information] when [condition]
-
-## User Interactions (if applicable)
-
-- The user should be able to [action] by [interaction pattern]
-- The system should provide feedback when [event]
-
-## Open Questions
-
-- [ ] **OQ-001**: [Question requiring stakeholder input]
-
-## Assumptions
-
-- Assumption: [Statement assumed to be true]
-
-## @spec Coverage
-
-[Maps each requirement to its `@spec` annotation location(s) in the codebase.
-Do not include this section when first creating a greenfield specification —
-the Delivery skill appends a row for every requirement it annotates (Process step 14)
-and Code Review verifies the rows against the code. The Brownfield skill writes it
-immediately, in this same table format.]
-
-| Requirement | Code Location(s) |
-|-------------|-----------------|
-| [XX]-REQ-XXX | [file:function] |
-```
+Write the specification in the shape of `assets/specification.md`. Read it before writing and follow it exactly, headings and field lines included; its bracketed notes on prefixes and requirement tags are part of the format. `scripts/gener8v-state.py` reads the `**Status:**` line in Source Context as the approval state and counts requirements only from bullet lines that open with the bold ID (`- **SR-REQ-001** …`). Lint warns on an NFR bullet without `verified by`, matches the `change: <change-slug>` tags against the change brief, and reads the `## @spec Coverage` rows as coverage.
 
 ---
 
@@ -203,6 +102,14 @@ The specification describes the area as it should be, across every change that h
 A full worked example — the Search & Retrieval specification of the Support Documentation Search System for the `support-search` change, with tagged requirements, two NFRs, the Draft/Approved lines, and the change-brief row and Change Log line the skill writes afterwards — is in `references/example.md` (relative to this skill's directory). Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **Lint reports `requirement prefix XX- is used by both specifications/<a>.md and specifications/<b>.md`.** Two areas chose the same prefix. While nothing cites the newer area's IDs, change its prefix. Once tickets, delivery records or `@spec` annotations cite them, the IDs are append-only: withdraw them and re-issue under a new prefix, and record the Adds / Withdraws in the change brief.
+- **Lint reports `changes/<change-slug>/change.md lists XX-REQ-NNN for <area> but specifications/<area-slug>.md does not contain it`.** The brief's Affected Capability Areas cell and the specification disagree — usually a typo, or a range in the cell that reaches past the IDs the specification defines. Correct whichever side is wrong; the cell names only IDs the specification holds.
+- **Lint warns `specifications/<area-slug>.md has no requirement tagged with change '<change-slug>' although the brief lists deltas for it`.** Process step 11 recorded the deltas in the brief, but step 2's tags are missing from the requirements. Add `*(<priority> · change: <change-slug>)*` or `*(amended YYYY-MM-DD by <change-slug>)*` to each requirement the change touched; the tags are how a reader of the specification finds them.
+- **Orchestrate reports fewer requirements than the specification holds.** Only bullet lines that open with the bold ID are definitions — `- **SR-REQ-001** *(must · change: …)*: …`. An ID in a table, in a heading, or without the bold markers is invisible to the counts and to coverage lint; rewrite it in the template's bullet form.
+- **Lint warns that an NFR `names no verification method`.** The `- **XX-NFR-NNN**` bullet lacks `verified by`. Name the benchmark, load test, lint or query that verifies the target; if none exists, the target belongs in Open Questions (Process step 3).
 
 ## Integration with Other Skills
 

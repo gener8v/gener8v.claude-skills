@@ -1,9 +1,10 @@
 ---
 name: brownfield
-description: "Map an existing codebase into the gener8v pipeline bottom-up: system context, one specification per capability area with requirement IDs, a PRD synthesized from the code, and @spec annotations in source. Use when onboarding existing code that has no .gener8v/ artifacts."
+description: "Map an existing codebase into the gener8v pipeline bottom-up: system context, one specification per capability area with requirement IDs, a PRD synthesized from the code, and @spec annotations in source. Use when onboarding existing code that has no .gener8v/prd.md, such as 'bring this repo into the pipeline' or 'retrofit specs onto this code'. Not for a product with no code yet (planning) or a project that already has a PRD (orchestrate)."
 argument-hint: "[subsystem or directory to onboard]"
 disable-model-invocation: true
 ---
+
 # Brownfield Skill
 
 ## Purpose
@@ -214,6 +215,14 @@ It lives at `skills/brownfield/references/example.md`.
 Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **Adding `@spec` comments raises "no delivery is In Progress".** The plugin's PreToolUse hook reminds on every source write outside a delivery. Annotation comments are the one source change this skill is allowed; the reminder does not block, and onboarding is not a delivery. Continue.
+- **Specifications exist but `prd.md` does not.** A run ended between Phase 4 and Phase 5; the SessionStart summary and Orchestrate both report Brownfield mid-run. Resume this skill — it skips to Phase 5. Do not run Planning: it would write a top-down PRD over an as-is baseline.
+- **Specifications still say `**Parent PRD:** (synthesized in Phase 5)`.** The run ended after `prd.md` was written but before step 12's back-fill. Resuming sees Phase 5 as done and will not revisit it, so set the line to the PRD's title in every specification by hand.
+- **`lint` reports requirements "in no ticket and no @spec Coverage row".** Phase 6 is unfinished. Baseline requirements are covered by `## @spec Coverage` rows, not tickets; a requirement that cannot be tied to code still gets a row, with the explanation in its location column.
+- **Phase 4 exhausts the context on a large codebase.** Extract one area per run, or one area per subagent given only `capability-areas.md` and that area's code paths. Areas that already have a specification count as done on resume.
 
 ## Integration with Other Skills
 

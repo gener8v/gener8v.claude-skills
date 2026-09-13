@@ -1,5 +1,5 @@
 {
-  "description": "gener8v pipeline hooks: keep pipeline-state.yaml current, surface it at session start, protect generated files.",
+  "description": "gener8v pipeline hooks: keep pipeline-state.yaml current and in front of every session, protect generated files, keep reviewer agents to their report, and keep an open delivery record current.",
   "hooks": {
     "SessionStart": [
       {
@@ -11,17 +11,40 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
         "hooks": [
-          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/pre-write.sh\"", "timeout": 10 }
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh\" pre-tool", "timeout": 10 }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
         "hooks": [
-          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/post-write.sh\"", "timeout": 20 }
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh\" post-tool", "timeout": 20 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh\" stop", "timeout": 15 }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "^gener8v:(code-reviewer|quality-reviewer|security-reviewer|defect-sweeper)$",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh\" subagent-start", "timeout": 15 }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "^gener8v:(code-reviewer|quality-reviewer|security-reviewer|defect-sweeper)$",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh\" subagent-stop", "timeout": 15 }
         ]
       }
     ]

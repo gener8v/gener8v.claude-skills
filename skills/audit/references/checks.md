@@ -83,7 +83,7 @@ These apply when auditing any individual artifact.
 ### Ticket Checks (`changes/<change-slug>/tickets/<area-slug>/`)
 - [ ] Each ticket is its own `TICKET-NNN.md` opening with `# TICKET-NNN: title` and the three header lines (`**Change:**`, `**Capability Area:**`, `**Specification:**`) that name the directory it sits in
 - [ ] `backlog.md` exists in the directory (Overview, Source Context, Ticket Dependency Chain, Suggested Ordering, Backlog Summary)
-- [ ] No ticket exists only as a heading in another file — a per-area `tickets/<area-slug>.md` holding `### TICKET-NNN:` sections is the legacy shape; recommend `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" split-tickets`
+- [ ] No ticket exists only as a heading in another file — a per-area `tickets/<area-slug>.md` holding `### TICKET-NNN:` sections is the legacy shape; recommend `gener8v-state.py split-tickets`
 - [ ] Ticket IDs in the directory are contiguous from `TICKET-001` and never reused; a withdrawn ticket keeps its file with `**Status:** Withdrawn` at the top
 - [ ] Every requirement the change brief adds or modifies for this area appears in at least one ticket (the whole specification only when the brief says so)
 - [ ] Every ticket has `**Priority:**` (`Must` / `Should` / `Could`) and `**Value:**` (one sentence) directly under Summary

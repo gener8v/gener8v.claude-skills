@@ -1,7 +1,9 @@
 ---
 name: orchestrate
-description: "Report where the gener8v pipeline stands — coverage matrix per capability area, ticket-level delivery and review status with verdicts, current stage — regenerate .gener8v/pipeline-state.yaml, and recommend the exact next skills and targets. Use at session start, after any pipeline skill, or when asked 'what's next' or 'where are we'."
+description: "Report where the gener8v pipeline stands (coverage matrix per capability area, ticket-level delivery and review status with verdicts, current stage), regenerate .gener8v/pipeline-state.yaml, and recommend the exact next skills and targets. Use at session start, after any pipeline skill, after a break or a compaction, or when asked 'what's next', 'where are we' or 'what should I work on'. Reports and recommends only: it writes nothing but the state file."
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/pipeline-context.sh *) Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py *)
 ---
+
 # Orchestrate Skill
 
 ## Purpose
@@ -21,7 +23,7 @@ Use this skill when:
 
 **Source:** All artifacts in `.gener8v/`
 **Read from:**
-- `.gener8v/pipeline-state.yaml` (regenerated first — see Process step 1)
+- `.gener8v/pipeline-state.yaml` (regenerated when the skill is invoked — see Current State)
 - `.gener8v/prd.md`, `.gener8v/context.md`, `.gener8v/CONVENTIONS.md`
 - `.gener8v/changes/<change-slug>/change.md` for each change the state file lists (declared status, Priority Cut, Open Questions)
 - The metrics the script derives (`gener8v-state.py metrics`; it also reads `.gener8v/runs.jsonl`, the run log the hooks append — no skill writes it)
@@ -35,28 +37,22 @@ Use this skill when:
 1. A pipeline status assessment presented to the user, with specific next-step recommendations
 2. A fresh `.gener8v/pipeline-state.yaml`
 
-**Write to:** `.gener8v/pipeline-state.yaml` — by running the generator. Under a copied install (no `${CLAUDE_PLUGIN_ROOT}`), write it by hand in the Pipeline State Format below, following the same rules the script implements.
+**Write to:** `.gener8v/pipeline-state.yaml` — by running the generator. Under a copied install, write it by hand following `references/manual-state.md`, by the same rules the script implements.
 **Delivery:** Status assessment is presented directly to the user in conversation. The YAML state file is written silently.
+
+## Current State
+
+The generator ran when this skill was invoked:
+
+!`${CLAUDE_SKILL_DIR}/scripts/pipeline-context.sh orchestrate ${CLAUDE_PROJECT_DIR}`
 
 ## Process
 
-1. **Regenerate State**: Run the deterministic generator and read its summary:
+1. **Regenerate State**: Already done — the Current State section above holds the output of `state` (which rewrote `.gener8v/pipeline-state.yaml`), `summary`, `lint` and `metrics`. Re-run one only after writing an artifact during this session:
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" state
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" summary
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" lint
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" metrics
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py state
    ```
-   If the script is unavailable, perform the same scan by hand — inventory every file below, parse the `**Status:**` line of each artifact, the `**Result:**` line of each review and the `**Priority:**` line of each ticket, derive ticket and change status from the vocabulary in `CONVENTIONS.md` §5, and write the YAML yourself:
-   - PRD `prd.md`; System Context `context.md`; Brownfield checkpoints `brownfield/*.md`
-   - Living artifacts: Specifications (count `REQ` and `NFR` IDs), Constraints (`constraints/prd.md` and per-area), Dependency map, Technical design (per-area and `system-design.md`) — read each **Status** line; a `Draft` PRD, specification, constraints file (PRD-level or per-area), dependency map or technical design (per-area or system) counts towards `approvals_pending`, together with unapproved change briefs — exactly what the script counts
-   - Change briefs `changes/<change-slug>/change.md` — read **Status** and the Affected Capability Areas table; a Requirements cell still saying `(pending specification)` means Specification has not run for that area in this change
-   - Tickets `changes/<change-slug>/tickets/<area-slug>/TICKET-NNN.md` (one ticket, one file; `backlog.md` alongside) — read each ticket's **Priority** and **Depends On**; a ticket carrying `**Status:** Withdrawn` at the top is not counted
-   - Delivery records `changes/<change-slug>/delivery/<area-slug>-ticket-NNN-delivery.md` — read **Status** and **Verification**, and any **Reviews Deferred** line
-   - Reviews `changes/<change-slug>/reviews/<area-slug>-ticket-NNN-{code,quality,security}-review.md` — read **Result**
-   - Legacy layout: top-level `tickets/`, `delivery/` and `reviews/*-review.md` are read as the pseudo-change `initial`; a legacy per-area ticket *file* (`tickets/<area-slug>.md` holding `### TICKET-NNN:` sections) is read with a warning that names `gener8v-state.py split-tickets --remove`
-   - Assessments `reviews/*-owasp-top10-assessment.md`, `*-owasp-llm-top10-assessment.md`, `*-architecture-assessment.md`
-   - Flow maps `flows/*.md`; Sweeps `sweeps/*-sweep.md`; Audits `audits/*.md`
+   If Current State says the state script is unavailable (a copied install) or python3 is missing, perform the scan by hand following `references/manual-state.md`, which lists every artifact to read and the exact shape of the file to write. If it says the project has no `.gener8v/`, skip to step 3 — the situation is Not started.
 
 2. **Read the State**: Open `.gener8v/pipeline-state.yaml`. The living coverage per capability area (with the changes touching each), the `changes:` map (each change's declared and working status, areas, pending specification/breakdown, ticket statuses, `done` flags and progress), `active_changes`, `approvals_pending`, stage, warnings and the deterministic next steps are already there. Do not recompute them. Keep the `metrics` output alongside; it is derived on demand and not written to the state file.
 
@@ -68,7 +64,7 @@ Use this skill when:
    - **Brownfield mid-run** (`brownfield/*.md` exists, specs incomplete, or specs exist without `prd.md`) → resume Brownfield at the first phase whose output is missing.
    - **Specified, no change opened** (specifications exist, `changes:` is empty, not brownfield-onboarded) → Planning opens a change; Ticket Breakdown needs a change brief to cut from.
    - **Legacy layout** (`cross_cutting.legacy_layout: true`; the pseudo-change `initial` appears in `changes:`) → recommend the one-time migration, run inside `.gener8v/`: `git mv tickets delivery changes/initial/ && mkdir -p changes/initial/reviews && git mv reviews/*-review.md changes/initial/reviews/`. Do it before any new delivery; no skill writes to the legacy locations.
-   - **Legacy ticket file** (a warning says `tickets/<area-slug>.md holds several tickets in one file`; `areas_detail.<area-slug>.legacy_file` is set) → recommend `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" split-tickets --remove`, which gives each ticket its own `TICKET-NNN.md` and writes `backlog.md`. Do it before delivering from that area; no skill writes the per-area file any more.
+   - **Legacy ticket file** (a warning says `tickets/<area-slug>.md holds several tickets in one file`; `areas_detail.<area-slug>.legacy_file` is set) → recommend `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py split-tickets --remove`, which gives each ticket its own `TICKET-NNN.md` and writes `backlog.md`. Do it before delivering from that area; no skill writes the per-area file any more.
    - **Several changes active** (`active_changes` lists more than one) → every per-ticket recommendation names its change (`… in <change-slug>` for Delivery and the reviews, `… for <change-slug>` for Specification and Ticket Breakdown), because those skills will ask otherwise. With exactly one active change those skills default to it and the suffix may be dropped.
    - **Declared status disagrees** (a warning such as "declared Complete but n ticket(s) are not done" or "still Draft but has tickets") → the fix is on the brief: the Product Owner approves it, or its `**Status:**` line is corrected. Do not edit it silently.
    - **In-flight delivery** (a delivery record `In Progress` or `Reconciled`) → resuming that ticket comes before anything else.
@@ -95,196 +91,11 @@ Use this skill when:
 
 ## Status Format
 
-Present the status to the user in this structure:
+Present the status to the user in the structure of `assets/status-format.md`. Read it before presenting; its sections map onto Process steps 3–8.
 
-```markdown
-## Pipeline Status: [PRD Title]
+## Pipeline State Fields
 
-**Stage:** [stage] · **Capability Areas:** [n] · **Changes:** [n] (active: [slugs, or none]) · **Approvals pending:** [n] · **System Context:** [Available / Not provided]
-**Situation:** [one line from Process step 3, if any applies]
-
-### Coverage (living)
-
-| Capability Area | Spec | REQ / NFR | Constraints | Tech Design | Changes |
-|----------------|------|-----------|-------------|-------------|---------|
-| [Area name]    | ✓ Approved / ✓ Draft / ✗ | [n] / [n] | ✓/✗ | ✓/✗ | [change slugs touching it, or —] |
-
-**Cross-cutting:** dependency map ✓/✗ · PRD constraints ✓/✗ · system design ✓/✗ · flows [n] · sweeps [n] · assessments [n] · audits [n]
-
-### Changes
-
-| Change | Declared | Working | Areas | Tickets | Delivered | Done | CR | QR | SEC |
-|--------|----------|---------|-------|---------|-----------|------|----|----|-----|
-| [slug] | [Draft / Approved / In Delivery / Complete / Abandoned] | [planned / ready / in_delivery / complete / abandoned] | [n] ([n] pending spec, [n] pending breakdown) | [n] | [n/total] | [n/total] | [n/total] | [n/total] | [n/total] |
-
-*Delivered/Done/CR/QR/SEC count tickets. CR/QR/SEC count reviews with an Approved-variant verdict or an explicit deferral; a review that came back Changes Required is shown as `!`. A legacy top-level layout appears as the change `initial`.*
-
-### Attention
-
-- [Tickets in changes_required, in_progress, blocked_delivery — qualified as `<change-slug>/<area-slug>/TICKET-NNN`; declared-status disagreements; approvals pending, by artifact and role; lint errors; warnings]
-
-### Next Steps
-
-1. **[Skill]** on [target] — [why this is next]
-2. **[Skill]** on [target] — [can run in parallel with step 1]
-
-### Skipped for this scale
-
-- [Skill] — [why it is not needed here]
-
-### Metrics
-
-tickets [done]/[total] (Must [n] · Should [n] · Could [n] · no priority [n]) · verdicts code [approved/notes/changes] · quality [a/n/c] · security [a/n/c] · findings [n] · rework [amended]/[reviewed] · verification passed [n] / failed [n] / not run [n] · reviews deferred [n] · sweeps [n] ([n] findings) · lead time median [d] days ([n] samples) · sessions [n]
-
-### Recommendations
-
-- [Scale, risk, periodic work, pipeline health — cite the metric or warning behind each]
-```
-
-## Pipeline State Format
-
-`scripts/gener8v-state.py` writes `.gener8v/pipeline-state.yaml` in this shape (schema version 4). When writing it by hand, produce the same shape. The example is the state of the Support Documentation Search System with its first change, `support-search`, in delivery.
-
-```yaml
-# gener8v pipeline state — GENERATED by gener8v-state.py; do not edit by hand.
-generated: "2026-08-26T12:48:59Z"
-schema_version: 4
-stage: delivering
-prd_title: Support Documentation Search System
-system_context: true
-has_source: true
-active_changes: [support-search]
-approvals_pending: 1
-capability_areas:
-  search-and-retrieval:
-    name: "Search & Retrieval"
-    specification: specifications/search-and-retrieval.md
-    approved: true
-    requirements: 10
-    nfrs: 2
-    constraints: constraints/search-and-retrieval.md
-    technical_design: technical-design/search-and-retrieval.md   # still Draft — counted in approvals_pending
-    changes: [support-search]
-  results-presentation:
-    name: Results Presentation
-    specification: null
-    approved: null
-    requirements: 0
-    nfrs: 0
-    constraints: null
-    technical_design: null
-    changes: [support-search]
-  documentation-ingestion:
-    # … same fields, changes: [support-search]
-changes:
-  support-search:
-    brief: changes/support-search/change.md
-    legacy: false
-    title: Support search
-    declared_status: In Delivery
-    approved: true
-    areas: [search-and-retrieval, results-presentation, documentation-ingestion]
-    areas_detail:
-      search-and-retrieval:
-        tickets_dir: changes/support-search/tickets/search-and-retrieval
-        backlog: changes/support-search/tickets/search-and-retrieval/backlog.md
-        ticket_count: 4                # withdrawn tickets are not counted
-        legacy_file: null              # set when tickets/search-and-retrieval.md (legacy) still exists
-    pending_specification: [results-presentation, documentation-ingestion]
-    pending_breakdown: [results-presentation, documentation-ingestion]
-    deliveries:
-      search-and-retrieval/TICKET-001:
-        title: Implement query input interface
-        priority: Must
-        status: reviewed
-        done: true
-        ticket_file: changes/support-search/tickets/search-and-retrieval/TICKET-001.md
-        depends_on: []
-        requirements: [SR-REQ-001, SR-REQ-002, SR-REQ-003]
-        delivery: changes/support-search/delivery/search-and-retrieval-ticket-001-delivery.md
-        delivery_status: Delivered
-        verification: passed
-        code_review: changes/support-search/reviews/search-and-retrieval-ticket-001-code-review.md
-        quality_review: changes/support-search/reviews/search-and-retrieval-ticket-001-quality-review.md
-        security_review: null
-        reviews_deferred: [security]
-        verdicts:
-          code: Approved with Notes
-          quality: Approved
-        amended_after_review: false
-      search-and-retrieval/TICKET-002:
-        title: Configure search index for semantic matching
-        priority: Must
-        status: in_progress
-        done: false
-        ticket_file: changes/support-search/tickets/search-and-retrieval/TICKET-002.md
-        depends_on: []
-        requirements: [SR-REQ-006, SR-REQ-007]
-        delivery: changes/support-search/delivery/search-and-retrieval-ticket-002-delivery.md
-        delivery_status: In Progress
-        verification: not run
-        code_review: null
-        quality_review: null
-        security_review: null
-        reviews_deferred: []
-        verdicts: {}
-        amended_after_review: false
-      search-and-retrieval/TICKET-003:
-        title: Implement relevance ranking
-        priority: Must
-        status: blocked
-        done: false
-        ticket_file: changes/support-search/tickets/search-and-retrieval/TICKET-003.md
-        depends_on: [TICKET-001, TICKET-002]
-        requirements: [SR-NFR-001, SR-REQ-004, SR-REQ-005]
-        delivery: null
-        # … remaining fields null / empty
-      search-and-retrieval/TICKET-004:
-        title: Add source document attribution to results
-        priority: Should
-        status: blocked
-        # …
-    progress: { total: 4, delivered: 1, reviewed: 1, done: 1, changes_required: 0 }
-    status: in_delivery
-    stage: delivering
-  initial:                       # present only on a legacy layout
-    brief: null
-    legacy: true
-    title: Initial (legacy layout)
-    # … same fields as any change
-cross_cutting:
-  dependency_map: null
-  system_design: null
-  prd_constraints: null
-  brownfield_checkpoints: []
-  audits: []
-  flows: []
-  sweeps: [sweeps/search-sweep.md]
-  assessments: [reviews/support-search-system-owasp-top10-assessment.md]
-  legacy_layout: false
-next_steps:
-  - skill: delivery
-    target: search-and-retrieval TICKET-002 in support-search
-    reason: Delivery record is In Progress — resume from its Implementation Plan and Progress checklist
-  - skill: specification
-    target: Results Presentation
-    reason: No specification for this capability area
-  - skill: specification
-    target: Documentation Ingestion
-    reason: No specification for this capability area
-  - skill: specification
-    target: results-presentation for support-search
-    reason: The change brief lists this area with requirements pending specification
-  - skill: specification
-    target: documentation-ingestion for support-search
-    reason: The change brief lists this area with requirements pending specification
-  - skill: dependencies
-    target: PRD
-    reason: Multiple capability areas and no dependency map (optional for light scope)
-warnings: []
-totals: { areas: 3, specs: 1, changes: 1, tickets_total: 4, delivered: 1, reviewed: 1, done: 1, changes_required: 0 }
-prd_approved: true
-```
+`scripts/gener8v-state.py` writes `.gener8v/pipeline-state.yaml` (schema version 4). `references/manual-state.md` shows a complete example — the shape to reproduce when writing the file by hand under a copied install.
 
 Field definitions:
 - **generated**: ISO 8601 timestamp. Derived files may be regenerated freely; the timestamp is informational.
@@ -334,6 +145,14 @@ When a change is in delivery, track at ticket level inside that change: resume a
 ### Scale-Aware, Risk-Aware
 A 2-area project and a 12-area project need different approaches, and so do a CRUD screen and a tenant-isolation invariant inside the same project. Never give the same advice regardless of scale or risk.
 
+## Troubleshooting
+
+- **Current State says the state script is unavailable.** A copied install: only `skills/` is present. Follow `references/manual-state.md`; the file written by hand must match the script's shape exactly, because a later plugin install regenerates it.
+- **Current State says `python3` is not on PATH.** The plugin's hooks call `python3` too and exit silently without it, so the state file is also going stale after every artifact write. Install Python 3.8 or later; until then, follow `references/manual-state.md`.
+- **Current State says the project has no `.gener8v/`.** Not started. Step 3 decides between Setup then Brownfield (source code exists) and Setup then Planning (it does not) — by looking at the working tree.
+- **A write to `.gener8v/pipeline-state.yaml` is denied by a hook.** The plugin protects the generated file. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py state` instead; the manual procedure applies only when the script cannot run.
+- **The state reports a stage or ticket status that contradicts the artifacts.** The script reads status lines exactly — `**Status:**`, `**Result:**`, `**Priority:**`, `**Verification:**` — and a line that was reworded reads as missing. Correct the artifact's line, never the state file, and regenerate.
+
 ## Integration with Other Skills
 
 This skill reads output from every other skill and writes only the state file. It is a coordination tool, not a pipeline stage. The plugin's `SessionStart` hook runs the same generator and injects the summary at the start of every session, resume and compaction, so a session never starts blind even when nobody runs Orchestrate.
@@ -341,7 +160,7 @@ This skill reads output from every other skill and writes only the state file. I
 ## Revisions
 
 - Re-run at any time; the state is regenerated from the artifacts, so there is nothing to keep in sync
-- When the artifact layout changes (a new artifact class, a new status value), update `scripts/gener8v-state.py`, this skill's Pipeline State Format and `CONVENTIONS.md` together and bump `schema_version`
+- When the artifact layout changes (a new artifact class, a new status value), update `scripts/gener8v-state.py`, this skill's Pipeline State Fields, `references/manual-state.md` and `CONVENTIONS.md` together and bump `schema_version`
 
 ## Notes
 

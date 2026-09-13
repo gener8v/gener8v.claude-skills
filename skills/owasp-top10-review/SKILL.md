@@ -1,8 +1,11 @@
 ---
 name: owasp-top10-review
-description: "Category-by-category OWASP Top 10:2025 coverage assessment of a codebase — maps existing SEC-XXX findings onto the taxonomy, probes the categories bottom-up reviews miss (supply chain, exceptional conditions, logging, SSRF) and re-ranks priorities. Use when asked 'are we OWASP-compliant', before an audit or security questionnaire, or after security reviews accumulate."
+description: "Category-by-category OWASP Top 10:2025 coverage assessment of a codebase: maps existing SEC-XXX findings onto the taxonomy, probes the categories bottom-up reviews miss (supply chain, exceptional conditions, logging, SSRF) and re-ranks priorities. Use when asked 'are we OWASP-compliant' or 'how do we score against the Top 10', before an audit or a security questionnaire, or after security reviews accumulate. Not for one delivered ticket (security-review) or the model surface of an LLM application (owasp-llm-top10-review)."
 argument-hint: "[system slug]"
+context: fork
+effort: xhigh
 ---
+
 # OWASP Top 10 Review Skill
 
 ## Purpose
@@ -119,6 +122,13 @@ A documented compliance constraint (CC-XXX) violation is automatically Critical 
 > **A02 — Security Misconfiguration · Primary Gap.** Placeholder database password in a fallback connection string (`support-search/search-and-retrieval-ticket-002-security-review/SEC-001`), root containers and unpinned base images (new findings SEC-001, SEC-002 in this assessment), CORS wildcard methods/headers and missing security headers (SEC-003, SEC-004). Elevated to #2 under the 2025 weighting.
 >
 > **A10 — Mishandling of Exceptional Conditions · Minor.** Reviewed every degrading `except`: a missing `DATABASE_URL` now fails closed (correct, after the ticket-002 fix); the ingestion worker falls back to shared source credentials on a decrypt error (fail-open → new finding SEC-005); indexing-queue degradations are intentional but should alert (ties A09 / `…ticket-002-security-review/SEC-002`).
+
+## Troubleshooting
+
+- **The assessment covered the wrong system, or none of the focus the user asked for.** This skill runs in a forked subagent that sees the skill and its arguments, not the conversation. Put the system slug, and any surface to weight (the public API, the admin console), in the argument. The slug names the report `.gener8v/reviews/<slug>-owasp-top10-assessment.md`; Orchestrate finds assessments in `.gener8v/reviews/` by their `-assessment.md` suffix, so keep the name exact.
+- **Two different findings are both `SEC-001`.** Numbering restarts per report, and this assessment starts its own. Always cite qualified IDs — `support-search/search-and-retrieval-ticket-002-security-review/SEC-002` for a ticket review, `<slug>-owasp-top10-assessment/SEC-001` for this one — in the matrix, the priorities and any ticket that fixes a finding.
+- **The A03 deep pass cannot run a dependency or image scan.** Say which scan was not run and why, and rate A03 on what was verified by reading — pinning, lockfiles, CI integrity. Do not mark it clean on the strength of a scan that never happened.
+- **The system also calls a model.** Prompt injection, output handling and denial-of-wallet belong to the OWASP LLM Top 10 Review, run alongside. Do not fold them into A03 or A05 here; note that the model surface is assessed there.
 
 ## Integration with Other Skills
 

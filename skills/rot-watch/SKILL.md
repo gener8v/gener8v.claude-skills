@@ -1,3 +1,10 @@
+---
+name: rot-watch
+description: "Detect decay in code that is being actively written: measure six signals (packaging drift, dependency direction, comment language, growth slopes, tests, the detectable subset of SOLID) against a recorded baseline and report only what moved, at .gener8v/rot/. Use once code has been delivered and again every few deliveries, before a release, or when asked 'is the codebase getting worse' or 'has this module drifted'. The first run records the baseline and reports nothing. Not for one delivery's quality (quality-review), defects (defect-sweep) or whether the architecture was right (architecture-review)."
+argument-hint: "[subsystem or path]"
+effort: xhigh
+---
+
 # Rot Watch Skill
 
 **Invoked with:** `<subsystem or path>` — or empty, to watch everything the baseline covers.
@@ -48,62 +55,7 @@ Do **not** use this skill when:
 
 ## Output Format
 
-```markdown
-# [Subsystem or Repository] — Rot Watch YYYY-MM-DD
-
-## Verdict
-
-[One of: **Holding** — nothing moved in the wrong direction · **Drifting** — movement worth
-correcting before it compounds · **Rotting** — a declared boundary is now violated]
-
-## Overview
-
-[2-3 sentences. What was watched, over which interval, how many deliveries since the last
-watch, and the single most consequential movement.]
-
-## Source Context
-
-**Baseline:** `.gener8v/rot/baseline.md` recorded YYYY-MM-DD · **Interval:** N deliveries, tickets [list]
-**Technical Design:** [file, or "Not yet performed — drift measured against observed shape only"]
-**Watched:** [paths]
-
-## Movements
-
-[Only what moved, and only in the wrong direction. A metric that improved is listed under
-Improvements. A metric that did not move is not listed at all — an unchanged number is not a
-finding, and listing it buries the ones that are.]
-
-### ROT-001: [What moved]
-
-**Signal:** [Which of the six checks below]
-**Movement:** [from → to, with the interval] — e.g. `core/kg/retrieve/expand.py: 180 → 520 lines over 4 deliveries`
-**Attributed to:** [ticket IDs from delivery records, where attributable]
-**Why it matters:** [The consequence if the trend continues — not a restatement of the metric]
-**Correction:** [What to do, concretely. A movement without a correction is an observation, not a finding]
-**Severity:** [Breach / Drift / Watch]
-
-## Improvements
-
-[Movement in the right direction, briefly. Recording it is what keeps the report honest —
-a report that only ever lists decay reads as noise and gets ignored.]
-
-## Baseline Delta Summary
-
-| Signal | Baseline | Now | Direction |
-|---|---|---|---|
-| Longest file in scope | | | |
-| Modules importing outside their layer | | | |
-| Dependency cycles | | | |
-| Source-to-test ratio | | | |
-| NFR verifications live | | | |
-| `@spec` annotations | | | |
-| Deferred markers (TODO/FIXME/XXX) | | | |
-
-## Not Watched
-
-[What this run could not check, and why. A watch that silently skips a subsystem is worse
-than one that says it skipped it.]
-```
+Write the report in the shape of `assets/rot-report.md` — Read it before writing and follow it exactly, headings included. `gener8v-state.py` finds reports by their `rot-YYYY-MM-DD.md` filename and reads nothing inside them; the line it parses is the baseline's `**Deliveries:** N` (see Troubleshooting).
 
 ## The Six Signals
 
@@ -227,7 +179,11 @@ observation produces a backlog nobody reads.
 8. **Assign severity** by direction and distance from the declared boundary.
 
 9. **Write the report**, then **regenerate the baseline** from the current measurements — so the
-   next run measures from here, not from the last clean state.
+   next run measures from here, not from the last clean state. The baseline's header carries
+   `**Deliveries:** N`, where N is the number of delivered tickets across every change at the time
+   of this watch (the sum of `progress.delivered` over `changes:` in `pipeline-state.yaml`).
+   `gener8v-state.py` subtracts it from the current count to decide when the next watch is due; a
+   baseline without the line reads as 0 and recommends a watch after every delivery.
 
 10. **Route Breaches.** For each Breach, either open a ticket in the owning area or record in the
     report why it was accepted. An accepted Breach becomes part of the declared shape at the next
@@ -240,6 +196,14 @@ Breach (a dependency inverted against a recorded architecture decision), two Dri
 Improvement — is in `references/example.md`.
 
 ---
+
+## Troubleshooting
+
+- **Orchestrate recommends a watch straight after one ran.** The state script reads the delivery count at the last watch from a `**Deliveries:** N` line in `.gener8v/rot/baseline.md`, and recommends a watch once three more deliveries have landed. A baseline without that line reads as 0, so every run looks overdue. Regenerate the baseline with `**Deliveries:** N` near its top, where N is `totals.delivered` in `.gener8v/pipeline-state.yaml` at the time of the run.
+- **Everything outside the old scope reads as growth.** The watched paths changed: a watch over `core/` against a baseline recorded over `core/kg/retrieve/` compares two different populations. Watch the baseline's paths; to widen the scope, make this run a recording run for the new paths and say so under Not Watched and in the Overview.
+- **A Breach disappeared between watches with no ticket behind it.** Either the technical design moved the boundary or the violation was fixed. Check the design's history before calling it an Improvement; Revisions requires the report to say when the boundary moved, so a moved boundary is never mistaken for a repair.
+- **The same accepted Breach is reported again.** An accepted Breach folds into the declared shape at the next baseline only when the report that accepted it recorded the acceptance (step 10). Record it there — the exception and why — and let the next baseline absorb it; never edit `baseline.md` to make it go away.
+- **No delivery records exist for the interval.** The watch still runs and measures, but attribution is empty. Say so in Source Context rather than guessing tickets from filenames or commit messages.
 
 ## Integration with Other Skills
 

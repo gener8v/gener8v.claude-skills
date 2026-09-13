@@ -1,8 +1,10 @@
 ---
 name: setup
-description: "Bootstrap the gener8v pipeline in a project: create .gener8v/, copy the conventions, generate pipeline-state.yaml, and add the pipeline directives to CLAUDE.md. Use when the user says 'set up gener8v' or 'initialize the pipeline', or when a project has no .gener8v/prd.md."
+description: "Bootstrap the gener8v pipeline in a project: create .gener8v/, copy the conventions, generate pipeline-state.yaml, and add the pipeline directives to CLAUDE.md. Use when the user says 'set up gener8v' or 'initialize the pipeline', when a project has no .gener8v/prd.md, or after a plugin upgrade to refresh the conventions. Not for deciding what to do next on a project already on the pipeline (orchestrate)."
 disable-model-invocation: true
+allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py *)
 ---
+
 # Setup Skill
 
 ## Purpose
@@ -18,7 +20,7 @@ Use this skill when:
 - The user says "set up gener8v" or "initialize the pipeline"
 
 Do **not** use this skill when:
-- `.gener8v/prd.md` already exists — use the Orchestrate skill instead. (A `.gener8v/` directory holding only `sweeps/` or `flows/` is *not* an onboarded project; Setup is still the right call and keeps those standalone artifacts.)
+- `.gener8v/prd.md` already exists and the question is what to do next — use the Orchestrate skill. Re-running Setup there after a plugin upgrade is still right: it refreshes only `CONVENTIONS.md`, the `CLAUDE.md` section and missing directories. (A `.gener8v/` directory holding only `sweeps/` or `flows/` is *not* an onboarded project; Setup is the right call and keeps those standalone artifacts.)
 - The user wants to start building immediately — run Planning (greenfield) or Brownfield (existing code) directly; each creates what it needs.
 
 ## Input
@@ -27,7 +29,8 @@ Do **not** use this skill when:
 **Read from:**
 - `CLAUDE.md` in the project root (if it exists)
 - `.gener8v/` (to see what already exists)
-- The plugin's `scripts/gener8v-state.py` and `skills/setup/references/conventions.md` (located at `${CLAUDE_PLUGIN_ROOT}` when installed as a plugin, or next to this SKILL.md when the skills were copied)
+- `${CLAUDE_SKILL_DIR}/references/conventions.md` — resolves under both the plugin and a copied install
+- The plugin's `scripts/gener8v-state.py` (plugin install only)
 
 **Expects:** A project directory. May or may not have existing code, documentation, or a `CLAUDE.md`.
 
@@ -43,7 +46,7 @@ Do **not** use this skill when:
 
 ## Process
 
-1. **Check Existing State**: Look for `.gener8v/prd.md` and for a `## gener8v Pipeline` section in `CLAUDE.md`. If `prd.md` exists, stop and recommend `/orchestrate`. Note any standalone artifacts already present (`sweeps/`, `flows/`, `reviews/*-assessment.md`) — they are kept, never moved. A legacy layout (top-level ticket, delivery and per-ticket review directories) is likewise left where it is; Orchestrate recommends the one-time move to `changes/initial/`, and Setup never scaffolds those legacy directories.
+1. **Check Existing State**: Look for `.gener8v/prd.md` and for a `## gener8v Pipeline` section in `CLAUDE.md`. If `prd.md` exists the project is already on the pipeline: refresh only what Setup owns — steps 2, 3 and 5 (missing directories, `CONVENTIONS.md`, the `CLAUDE.md` section) — leave every artifact alone, then recommend `/orchestrate`. Note any standalone artifacts already present (`sweeps/`, `flows/`, `reviews/*-assessment.md`) — they are kept, never moved. A legacy layout (top-level ticket, delivery and per-ticket review directories) is likewise left where it is; Orchestrate recommends the one-time move to `changes/initial/`, and Setup never scaffolds those legacy directories.
 
 2. **Create Directory Structure**: Create any of these that do not exist (existing directories and files are left untouched):
    ```
@@ -60,13 +63,13 @@ Do **not** use this skill when:
    ```
    `changes/` is created empty. Planning creates each `changes/<change-slug>/` when it opens a change, and the per-change tickets, delivery records and reviews live inside it — there is no top-level home for them.
 
-3. **Install Conventions**: Copy `references/conventions.md` (next to this SKILL.md) to `.gener8v/CONVENTIONS.md`. If the file already exists, replace it — it is owned by Setup and versioned with the plugin.
+3. **Install Conventions**: Copy `${CLAUDE_SKILL_DIR}/references/conventions.md` to `.gener8v/CONVENTIONS.md`. If the file already exists, replace it — it is owned by Setup and versioned with the plugin.
 
 4. **Generate Pipeline State**: Run the deterministic generator when it is available:
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" state
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py state
    ```
-   Under a copied install `${CLAUDE_PLUGIN_ROOT}` is unset and the script is not present; write the fallback file instead:
+   Under a copied install the script is not present and the command fails with No such file; write the fallback file instead:
    ```yaml
    # gener8v pipeline state — GENERATED; do not edit by hand.
    # Regenerate with scripts/gener8v-state.py (plugin) or /orchestrate.
@@ -151,6 +154,14 @@ Setup complete:
 ```
 
 ---
+
+## Troubleshooting
+
+- **The state command fails with No such file.** A copied install — the skill was invoked as `/setup`, not `/gener8v:setup`. `${CLAUDE_PLUGIN_ROOT}` is substituted only for plugin skills, so the path collapses to `/scripts/gener8v-state.py`. Write the fallback file from step 4; from then on Orchestrate keeps the state file by hand.
+- **The state command fails with `python3: command not found` under the plugin.** Install Python 3.8 or later and re-run step 4. The plugin's SessionStart and PostToolUse hooks call `python3` as well and exit silently without it, so nothing regenerates the state until it is installed.
+- **Setup refreshed only the conventions and recommended Orchestrate.** `.gener8v/prd.md` exists: the project is already on the pipeline, so step 1 limits the run to what Setup owns. That is the intended outcome — it is how a plugin upgrade reaches `CONVENTIONS.md` — not an error.
+- **Local edits to the `## gener8v Pipeline` section are gone after a re-run.** Step 5 replaces the section wholesale, by design. Recover the lines from git and keep them under a heading of their own, outside the section.
+- **Both `/setup` and `/gener8v:setup` are listed.** A copied install lingers beside the plugin; the copy shadows the plugin's skills and never updates. `scripts/check-install.sh` in the plugin lists each lingering directory — move them aside (README: Upgrading from a copied install).
 
 ## Integration with Other Skills
 

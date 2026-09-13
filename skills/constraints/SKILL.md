@@ -1,8 +1,9 @@
 ---
 name: constraints
-description: "Surface technical, compliance, integration and operational constraints (TC/CC/IC/OC-XXX) from the PRD or one specification, each with rationale, impact on requirement IDs, interactions and risk flags. Use before technical design or ticket breakdown whenever the system has regulatory, infrastructure or integration boundaries."
-argument-hint: "<prd | capability area>"
+description: "Surface technical, compliance, integration and operational constraints (TC/CC/IC/OC-XXX) from the PRD or one specification, each with rationale, affected requirement IDs, interactions and risk flags. Use before technical design or ticket breakdown when the system has regulatory, infrastructure or integration boundaries, such as 'what compliance rules apply to this' or 'what limits does the legacy system put on us'. Not for choosing an architecture (technical-design) or ordering work across areas (dependencies)."
+argument-hint: "[prd | capability area]"
 ---
+
 # Constraints Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -47,83 +48,7 @@ A single constraints analysis can cover the PRD (broad) or one specification (de
 
 ## Output Format
 
-Produce a markdown document with the following structure:
-
-```markdown
-# [Source Document Title] — Constraints Analysis
-
-## Overview
-
-[2-3 sentences summarizing what was analyzed and the most significant
-constraints discovered. Highlight any constraints that materially affect
-scope or feasibility.]
-
-## Source Context
-
-**Analyzed Document:** [Title and type — PRD or Specification]
-**Capability Areas Covered:** [List which capability areas this analysis spans]
-**Status:** [Draft / Approved]
-**Approved by:** [Architect — name, YYYY-MM-DD — or "pending"]
-
-## Technical Constraints
-
-[Limitations imposed by technology, infrastructure, or engineering realities.]
-
-- **TC-001**: [Constraint statement — what must be true or what cannot be done]
-  - *Rationale:* [Why this constraint exists]
-  - *Impact:* [Which requirements or capabilities this affects]
-
-## Compliance & Regulatory Constraints
-
-[Obligations imposed by law, regulation, industry standards, or policy.]
-
-- **CC-001**: [Constraint statement]
-  - *Rationale:* [Regulation, standard, or policy source]
-  - *Impact:* [Which requirements or capabilities this affects]
-
-## Integration Constraints
-
-[Limitations imposed by external systems, APIs, third-party services,
-or existing infrastructure the system must work with.]
-
-- **IC-001**: [Constraint statement]
-  - *Rationale:* [Why this constraint exists]
-  - *Impact:* [Which requirements or capabilities this affects]
-
-## Operational Constraints
-
-[Limitations imposed by deployment, maintenance, support, scaling,
-or organizational capacity.]
-
-- **OC-001**: [Constraint statement]
-  - *Rationale:* [Why this constraint exists]
-  - *Impact:* [Which requirements or capabilities this affects]
-
-## Constraint Interactions
-
-[Document cases where constraints compound or conflict with each other.]
-
-| Constraint | Interacts With | Nature of Interaction |
-|------------|---------------|----------------------|
-| [ID] | [ID] | [Reinforcing / Conflicting / Conditional] |
-
-## Risk Flags
-
-[Constraints that pose significant risk to feasibility, timeline, or scope.]
-
-- **RF-001**: [Risk statement]
-  - *Related Constraints:* [IDs]
-  - *Severity:* [High / Medium / Low]
-  - *Recommendation:* [Suggested action or investigation]
-
-## Open Questions
-
-- [ ] **OQ-001**: [Question requiring clarification to resolve a constraint]
-
-## Assumptions
-
-- Assumption: [Statement assumed to be true for this analysis]
-```
+Write the analysis in the shape of `assets/constraints.md`. Read it before writing and follow it exactly, omitting a category section that has no entries (see Notes). `scripts/gener8v-state.py` reads the `**Status:**` line in Source Context — an analysis that is not Approved, `constraints/prd.md` included, counts toward approvals pending — and lint flags any requirement ID the analysis cites that exists in no specification.
 
 ---
 
@@ -180,6 +105,14 @@ Where possible, cite the source of a constraint (regulation name, API documentat
 A full constraints analysis of the Search & Retrieval specification of the Support Documentation Search System — technical, compliance, integration and operational constraints with rationale and requirement impact, interactions, a risk flag, and the Source Context approval lines. It lives at `skills/constraints/references/example.md`. Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **The argument names an area that has no specification yet.** A specification-level analysis has no requirement IDs to cite under *Impact*. Run Specification for the area first, or analyze `prd` now and refine per area once the specification exists — area-level entries then reference the PRD-level ones instead of restating them (Process step 1).
+- **A constraint ID is ambiguous in a ticket or a design.** Numbering restarts per file, so `CC-001` can exist in both `constraints/prd.md` and `constraints/<area-slug>.md`. Every reference outside its home file is qualified — `prd/CC-001`, `search-and-retrieval/CC-001` (`CONVENTIONS.md` §4); a bare ID cannot be traced to the constraint Delivery and Security Review must enforce.
+- **The repository contradicts a recorded constraint.** Amend the entry in place with the file that settles it as its rationale (Process step 5b), or mark it `**Status:** Withdrawn` if it no longer holds; either way it keeps its ID. Technical designs and tickets that cite it are now potentially stale (Revisions).
+- **Lint reports `constraints/<file>.md references requirement IDs that exist in no specification`.** An *Impact* line cites a mistyped ID, or one from an area whose specification has not been written. Correct the citation, or name the capability area instead until its specification exists.
+- **Orchestrate counts the analysis under approvals pending.** Its Source Context `**Status:**` is not `Approved`. Present it to the Architect (Process step 10). The count never blocks downstream skills, but Audit warns when a stage was produced from an unapproved analysis.
 
 ## Integration with Other Skills
 
