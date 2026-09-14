@@ -16,12 +16,17 @@ The `claude plugin eval` suite for the gener8v plugin. It answers two questions 
 Every run is a real model call on your account. Cases run three times per arm by default, with the plugin and without it.
 
 ```bash
-# the whole suite, as CI would run it
-claude plugin eval . --scaffold --allow-tools Bash Write Edit \
-  --model claude-sonnet-5 --judge-model claude-haiku-4-5 --no-publish --max-cost-usd 25
+# the whole suite, as CI would run it (routing and functional separately; see "Reading results")
+claude plugin eval . --scaffold --tag routing --ablation none \
+  --model claude-sonnet-5 --judge-model claude-haiku-4-5 --no-publish --max-cost-usd 15
+claude plugin eval . --scaffold --tag functional --allow-tools Bash Write Edit \
+  --model claude-sonnet-5 --judge-model claude-haiku-4-5 --no-publish --max-cost-usd 15
 
-# routing only, one run each, no baseline arm — the quick check after editing a description
-claude plugin eval . --scaffold --tag routing --runs 1 --ablation none
+# routing: no baseline arm, so the fires grader is scored (see below)
+claude plugin eval . --scaffold --tag routing --ablation none
+
+# functional, with the no-plugin comparison
+claude plugin eval . --scaffold --tag functional --allow-tools Bash Write Edit
 
 # one case while iterating on it
 claude plugin eval . --scaffold --case rot-watch-first-run --runs 1 --ablation none --allow-tools Bash Write Edit
@@ -30,8 +35,13 @@ claude plugin eval . --scaffold --case rot-watch-first-run --runs 1 --ablation n
 - `--scaffold` is required: without it the fixture is not copied and every scaffolded case runs in an empty directory.
 - Claude Code refuses to grant Bash to an eval on a machine it cannot sandbox reliably — for example when the Docker credential store (`~/.docker`) contains a symbolic link. There, run the functional cases with `--allow-tools Write Edit`, and expect `context-injected` to fail.
 - The functional cases need `--allow-tools`. Orchestrate's injected context runs through Bash, Rot Watch writes its baseline, and the hand-edit case offers Claude the tools it would use to make the edit. Granted Bash runs under Claude Code's OS sandbox.
-- A routing case's `fires` grader is a plugin-fired indicator in a two-arm run: it cannot pass without the plugin, so Claude Code reports it without scoring it. The `not-…` grader is scored in both arms.
+- **Read routing results from the `fires` indicator, not from Δ.** In a two-arm run Claude Code excludes every `tool_used: Skill` grader from the score, because it cannot pass without the plugin. That leaves only the `not-…` grader, which a no-plugin run passes trivially, so a routing case's WITH and W/OUT are both 1.00 and Δ is 0 by construction. Run routing with `--ablation none`, where nothing is excluded and `fires` counts toward the score.
+- **Δ means something for the functional cases.** Their prompts are plain language, so the no-plugin arm attempts the same task. The fixture ships no `pipeline-state.yaml`, so that arm has to work from the artifacts rather than reading the script's conclusions; only `state-file-hand-edit` generates one in its scaffold.
 - The runs cap turns deliberately low for routing (the choice is made on the first turn), so a routing run ending at its turn limit is expected, not a failure.
+
+## Reading results
+
+See the notes under Running: routing is judged by `fires` under `--ablation none`; functional cases by Δ.
 
 ## When to run it
 

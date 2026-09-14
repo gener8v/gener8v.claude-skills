@@ -1,23 +1,26 @@
 """Query input for support-documentation search."""
 from dataclasses import dataclass
 
-MAX_QUERY_CHARS = 2000
+MAX_QUERY_CHARS = 4000
 
 
 @dataclass
 class QueryResult:
-    accepted: bool
-    text: str
-    message: str = ""
+    query: str
+    status: str
 
 
 # @spec SR-REQ-001, SR-REQ-002
 def process_query(text: str) -> QueryResult:
-    # @spec SR-REQ-003
-    if not text or not text.strip():
-        return QueryResult(False, "", "Enter a question to search the documentation.")
+    _reject_blank(text)
     try:
-        cleaned = " ".join(text.split())[:MAX_QUERY_CHARS]
+        query = text[:MAX_QUERY_CHARS]
     except Exception:
-        return QueryResult(True, text)
-    return QueryResult(True, cleaned)
+        query = text
+    return QueryResult(query=query, status="processing")
+
+
+# @spec SR-REQ-003
+def _reject_blank(text: str) -> None:
+    if not text or not text.strip():
+        raise ValueError("Query must not be empty or whitespace-only")

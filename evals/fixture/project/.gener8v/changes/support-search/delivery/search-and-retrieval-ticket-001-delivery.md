@@ -69,7 +69,7 @@ No NFR is covered by this ticket (SR-NFR-001 is verified under TICKET-003).
 - [x] The system accepts free-text input of at least 500 characters (SR-REQ-002) — `test_accepts_long_input` (1,000-character input) passes
 - [x] The system passes the query text to the search pipeline without modification (SR-REQ-001) — `test_passes_through_unmodified` asserts `QueryResult.query` equals the original text
 - [x] The system provides feedback that a search is in progress — `test_status_processing` asserts `QueryResult.status == "processing"`
-- [x] Empty or whitespace-only queries are rejected with a clear message (SR-REQ-003) — `test_rejects_empty` and `test_rejects_whitespace` assert `ValueError("Query must not be empty or whitespace-only")`
+- [x] Empty or whitespace-only queries are rejected with a clear message (SR-REQ-003) — `test_rejects_empty_or_whitespace` (empty and whitespace-only cases) asserts `ValueError("Query must not be empty or whitespace-only")`
 
 ## Decisions Made
 
