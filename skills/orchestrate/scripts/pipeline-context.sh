@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Pipeline state for a skill to read before it runs. Orchestrate and Audit inject its output with
-# !`…` in SKILL.md, so the generator has already run by the time the model sees the skill.
+# Pipeline state for Orchestrate to read before it runs, injected with !`…` in SKILL.md, so the
+# generator has already run by the time the model sees the skill.
 #
 #   pipeline-context.sh orchestrate [PROJECT_DIR]   state (writes pipeline-state.yaml), summary, lint, metrics
-#   pipeline-context.sh audit       [PROJECT_DIR]   lint, metrics
 #
 # PROJECT_DIR is ${CLAUDE_PROJECT_DIR} as the skill substitutes it (it may contain spaces, so every
 # remaining argument is joined back into one path); without it, the current directory.
@@ -44,7 +43,6 @@ run() {
 
 case "$mode" in
   orchestrate) run state; run summary; run lint; run metrics ;;
-  audit)       run lint; run metrics ;;
-  *)           echo "pipeline-context.sh: unknown mode '$mode' (orchestrate | audit)" ;;
+  *)           echo "pipeline-context.sh: unknown mode '$mode' (orchestrate)" ;;
 esac
 exit 0
