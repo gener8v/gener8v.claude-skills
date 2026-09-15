@@ -2,7 +2,6 @@
 name: ticket-breakdown
 description: "Decompose one capability area's requirements for one change into implementable tickets with Priority, Value, acceptance criteria, Prior Art, Output contracts, Known Hazards, dependency ordering and relative sizing: one TICKET-NNN.md per ticket plus backlog.md, in the change's tickets directory. Use when a specification is approved and the team needs work items, such as 'break this spec into tickets' or 'create the backlog for search'. Not for implementing a ticket (delivery) or ordering whole capability areas (dependencies)."
 argument-hint: "[capability area] [for change-slug]"
-allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py *)
 ---
 
 # Ticket Breakdown Skill

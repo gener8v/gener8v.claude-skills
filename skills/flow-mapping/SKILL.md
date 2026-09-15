@@ -2,7 +2,6 @@
 name: flow-mapping
 description: "Turn current-state data-flow evidence into Mermaid diagrams that compile and state payload, cadence and reliability, gated by a validation script, at .gener8v/flows/ with an explicit Unknowns list. Use for data-flow, system-map or integration-map deliverables, or to check existing diagrams before they are published, such as 'map how claims data moves between systems' or 'draw the integration map'. Current state only: not for future-state architecture proposals (technical-design)."
 argument-hint: "[domain | source file]"
-allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh *)
 ---
 
 # Flow Mapping Skill
@@ -48,7 +47,7 @@ blocker.
 - one or more Mermaid diagrams
 - an explicit **Unknowns** list — what could not be evidenced
 
-**Gate:** `${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh` must exit 0 before the artifact is considered done. The path is absolute under both the plugin and a copied install, and it is pre-approved, so run it exactly as written; the session's working directory is the user's project, so a relative `scripts/…` never resolves.
+**Gate:** `${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh` must exit 0 before the artifact is considered done. The path is absolute under both the plugin and a copied install, so run it exactly as written; the session's working directory is the user's project, so a relative `scripts/…` never resolves.
 
 ## Output Format
 
@@ -157,7 +156,7 @@ The date-of-birth loss surfaces in **Reliability** and drives a finding.
 - **A compile `ERROR` shows six lines and `… more line(s)`.** The part naming the offending token is usually further down. Save that block as a `.mmd` file and run `npx --yes @mermaid-js/mermaid-cli@11 -i block.mmd -o /tmp/block.svg` to read the whole message.
 - **`WARN … has N nodes (>18) — split by domain`.** Split the diagram by domain and link the parts (Principle 6). `MAX_NODES=24` raises the threshold for a domain that genuinely cannot be split.
 - **`WARN … node 'X' is declared but never flows anywhere`.** Either the evidence never said what reaches it — the flow belongs in **Unknowns**, not in an invented edge — or it is deliberately unconnected, and `class X isolated` says so.
-- **Running the validator asks for permission.** The pre-approval covers exactly `${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh …`. Prefixing `bash` or `cd … &&`, or using a relative path, is a different command and prompts.
+- **Running the validator asks for permission.** Expected: the skill pre-approves nothing, because a skill with `allowed-tools` must itself be approved each time Claude invokes it — which would stop a flow map Claude starts on its own. Approve the command once, or add `Bash(${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh *)` with the absolute path to the project's permission allow rules. Run it exactly as written: a `bash` prefix, a `cd … &&` or a relative path is a different command and will not match a rule.
 
 ## Integration with Other Skills
 

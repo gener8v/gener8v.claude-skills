@@ -2,7 +2,6 @@
 name: audit
 description: "Audit pipeline artifacts for gaps, inconsistencies, missing coverage and staleness: one document, cross-stage traceability across .gener8v/, or a ticket or externally-authored plan reconciled against the real codebase (Go / Blocked), then resolve the findings interactively. Use when asked to 'check the spec for gaps', 'sanity-check this plan before we build it' or 'does this ticket still match the code', before committing to a stage, or at milestones. Audits documents and plans, not code: for delivered code use code-review, quality-review or security-review."
 argument-hint: "[pipeline | stage slug | reconcile ticket-or-plan]"
-allowed-tools: Bash(${CLAUDE_SKILL_DIR}/../orchestrate/scripts/pipeline-context.sh *) Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py *)
 effort: xhigh
 ---
 
@@ -136,17 +135,11 @@ The full check lists live in `references/checks.md` — open it at Process step 
 - **Warning**: Potential issue that may cause problems later. Worth reviewing but can proceed. Examples: subjective language in a requirement, a Large ticket that might benefit from splitting, a soft dependency not reflected in sequencing.
 - **Suggestion**: Improvement opportunity. Non-blocking. Examples: reworded requirement for clarity, additional user scenario, constraint that could be more specific.
 
-## Lint and Metrics
-
-The state script's deterministic checks ran when this skill was invoked:
-
-!`${CLAUDE_SKILL_DIR}/../orchestrate/scripts/pipeline-context.sh audit ${CLAUDE_PROJECT_DIR}`
-
 ## Process
 
 1. **Determine Scope**: Identify which artifacts exist in `.gener8v/` and whether this is a single-document, cross-stage, or reconciliation audit. A reconciliation audit also needs access to the live codebase, not just `.gener8v/`.
 
-2. **Read Artifacts**: Load all in-scope documents and `CONVENTIONS.md`. Note which expected artifacts are missing. Read prior audits so deferred findings are carried forward, not re-raised. Treat each line of the `lint` output in Lint and Metrics above as a candidate finding, and for a cross-stage audit keep the `metrics` numbers as evidence for Warnings. When that section says the state script is unavailable, run the same checks by hand from `references/checks.md`. After resolving findings that change artifacts, re-run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py lint` to confirm they clear. For a reconciliation audit, also read the codebase ground truth the artifacts reference — schema/migrations, scripts, and the cited documents.
+2. **Read Artifacts**: Load all in-scope documents and `CONVENTIONS.md`. Note which expected artifacts are missing. Read prior audits so deferred findings are carried forward, not re-raised. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py lint` and treat each line as a candidate finding; for a cross-stage audit also run `… metrics` and keep the numbers as evidence for Warnings. When the script is unavailable, run the same checks by hand from `references/checks.md`. After resolving findings that change artifacts, re-run `lint` to confirm they clear. For a reconciliation audit, also read the codebase ground truth the artifacts reference — schema/migrations, scripts, and the cited documents.
 
 3. **Run Checks**: Open `references/checks.md` and apply every group that matches the artifacts in scope. For cross-stage audits, run single-document checks first, then cross-stage checks — including the Change Traceability and Approvals groups for every change under `changes/`. For reconciliation audits, run the Ground-Truth Reconciliation checks against the codebase and produce a Go / Blocked verdict.
 
@@ -177,9 +170,9 @@ A cross-pipeline audit of the Support Documentation Search System with one chang
 
 ## Troubleshooting
 
-- **Lint and Metrics says the state script is unavailable.** A copied install (only `skills/` is present) or no `python3`. Run the matching groups from `references/checks.md` by hand, and cite no metric: numbers in an audit come from `gener8v-state.py metrics`, never from the model's own counting.
-- **Lint and Metrics says the project has no `.gener8v/`.** There is nothing to audit, and this skill never generates the missing artifacts. Recommend Setup, then Planning (no source yet) or Brownfield (existing code).
-- **The `lint` output ends with `(exit 1)`.** Lint exits 1 whenever it prints an `ERROR`; the output above is still complete. Each `ERROR` is a candidate finding whose severity is decided by the Severity Levels, not by the lint label.
+- **The state script is unavailable.** Under a copied install `${CLAUDE_PLUGIN_ROOT}` is not substituted, so the command fails with No such file; without `python3` it fails outright. Run the matching groups from `references/checks.md` by hand, and cite no metric: numbers in an audit come from `gener8v-state.py metrics`, never from the model's own counting.
+- **The project has no `.gener8v/`.** There is nothing to audit, and this skill never generates the missing artifacts. Recommend Setup, then Planning (no source yet) or Brownfield (existing code).
+- **The `lint` output ends with `(exit 1)`.** Lint exits 1 whenever it prints an `ERROR`; its output is still complete. Each `ERROR` is a candidate finding whose severity is decided by the Severity Levels, not by the lint label.
 - **A reconciliation audit cannot reach the code.** The artifacts sit in `.gener8v/` but the repository they describe — or one repository of a workspace — is not in the working tree. Do not return **Go** on assumptions nobody verified: record each one as a Gap and ask for access (`/add-dir`, or run from the workspace root).
 - **A finding still appears in `lint` after its fix was applied.** The fix went to a file the script no longer reads — most often a legacy per-area `tickets/<area-slug>.md` beside a `tickets/<area-slug>/` directory, which the script ignores once the directory exists. Apply the fix to the ticket file, then re-run `lint`.
 - **The session ended mid-resolution.** The report was written before the first finding was discussed (step 8). Resume from it: findings still `Open` are the ones left, and the Resolution Log holds every decision already made.

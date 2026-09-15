@@ -147,6 +147,7 @@ A 2-area project and a 12-area project need different approaches, and so do a CR
 
 ## Troubleshooting
 
+- **Claude asks for approval before running Orchestrate on its own.** Expected: a skill with `allowed-tools` must be approved whenever Claude, rather than the user, invokes it, and Orchestrate needs `allowed-tools` so the Current State injection can run (the alternative is four separate command prompts per run). Answer "don't ask again", or add `Skill(gener8v:orchestrate)` to the permission allow rules — required for scheduled or headless runs, which cannot answer a prompt and are denied. Typing `/gener8v:orchestrate` never asks.
 - **Current State says the state script is unavailable.** A copied install: only `skills/` is present. Follow `references/manual-state.md`; the file written by hand must match the script's shape exactly, because a later plugin install regenerates it.
 - **Current State says `python3` is not on PATH.** The plugin's hooks call `python3` too and exit silently without it, so the state file is also going stale after every artifact write. Install Python 3.8 or later; until then, follow `references/manual-state.md`.
 - **Current State says the project has no `.gener8v/`.** Not started. Step 3 decides between Setup then Brownfield (source code exists) and Setup then Planning (it does not) — by looking at the working tree.
