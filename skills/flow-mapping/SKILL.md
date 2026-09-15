@@ -1,8 +1,10 @@
 ---
 name: flow-mapping
-description: "Turn current-state data-flow evidence into Mermaid diagrams that compile and state payload, cadence and reliability, gated by scripts/validate-flows.sh, at .gener8v/flows/<domain>.md with an explicit Unknowns list. Use for data-flow, system-map or integration-map deliverables — current state only, never future-state proposals."
-argument-hint: "<domain | source file>"
+description: "Turn current-state data-flow evidence into Mermaid diagrams that compile and state payload, cadence and reliability, gated by a validation script, at .gener8v/flows/ with an explicit Unknowns list. Use for data-flow, system-map or integration-map deliverables, or to check existing diagrams before they are published, such as 'map how claims data moves between systems' or 'draw the integration map'. Current state only: not for future-state architecture proposals (technical-design)."
+argument-hint: "[domain | source file]"
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh *)
 ---
+
 # Flow Mapping Skill
 
 ## Purpose
@@ -46,11 +48,7 @@ blocker.
 - one or more Mermaid diagrams
 - an explicit **Unknowns** list — what could not be evidenced
 
-**Gate:** `scripts/validate-flows.sh` (next to this SKILL.md) must exit 0 before the artifact is considered done. Its path depends on how the skills are installed:
-- plugin: `"${CLAUDE_PLUGIN_ROOT}/skills/flow-mapping/scripts/validate-flows.sh"`
-- copied skills: `~/.claude/skills/flow-mapping/scripts/validate-flows.sh`
-
-The session's working directory is the user's project, so a relative `scripts/…` never resolves — always use one of the two forms above.
+**Gate:** `${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh` must exit 0 before the artifact is considered done. The path is absolute under both the plugin and a copied install, and it is pre-approved, so run it exactly as written; the session's working directory is the user's project, so a relative `scripts/…` never resolves.
 
 ## Output Format
 
@@ -109,8 +107,7 @@ graph TD
 2. **Draft** one diagram per domain in the Output Format above.
 3. **Validate (mechanical):**
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/skills/flow-mapping/scripts/validate-flows.sh" .gener8v/flows/*.md
-   # copied install: ~/.claude/skills/flow-mapping/scripts/validate-flows.sh .gener8v/flows/*.md
+   ${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh .gener8v/flows/*.md
    ```
    Fix every `ERROR` (compilation, no nodes). Treat each `WARN` as a question to answer, not noise
    to silence — an unlabelled edge usually means the evidence never said what moves.
@@ -152,6 +149,15 @@ graph TD
 ```
 Now it says: this is a batch flow, it runs nightly, it is fragile, and here is exactly what crosses.
 The date-of-birth loss surfaces in **Reliability** and drives a finding.
+
+## Troubleshooting
+
+- **`validate-flows.sh needs npx (Node)`, exit 2.** Nothing was validated — exit 2 is a usage problem, not a compile failure. Install Node and rerun; the artifact is not done until the gate exits 0.
+- **Every diagram reports `does not compile` with an npm or network error.** The first run fetches `@mermaid-js/mermaid-cli@11` through `npx`; without network access the fetch fails and each diagram is reported as a compile `ERROR`. The quoted error names npm, not a Mermaid token. Allow network for that first run and rerun.
+- **A compile `ERROR` shows six lines and `… more line(s)`.** The part naming the offending token is usually further down. Save that block as a `.mmd` file and run `npx --yes @mermaid-js/mermaid-cli@11 -i block.mmd -o /tmp/block.svg` to read the whole message.
+- **`WARN … has N nodes (>18) — split by domain`.** Split the diagram by domain and link the parts (Principle 6). `MAX_NODES=24` raises the threshold for a domain that genuinely cannot be split.
+- **`WARN … node 'X' is declared but never flows anywhere`.** Either the evidence never said what reaches it — the flow belongs in **Unknowns**, not in an invented edge — or it is deliberately unconnected, and `class X isolated` says so.
+- **Running the validator asks for permission.** The pre-approval covers exactly `${CLAUDE_SKILL_DIR}/scripts/validate-flows.sh …`. Prefixing `bash` or `cd … &&`, or using a relative path, is a different command and prompts.
 
 ## Integration with Other Skills
 

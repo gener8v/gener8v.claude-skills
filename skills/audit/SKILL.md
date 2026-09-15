@@ -1,8 +1,11 @@
 ---
 name: audit
-description: "Audit pipeline artifacts for gaps, inconsistencies, missing coverage and staleness — a single document, cross-stage traceability across .gener8v/, or reconciliation of a ticket or externally-authored plan against the real codebase (Go / Blocked) — then resolve findings interactively. Use before committing to a stage, at milestones, or before delivering a plan whose assumptions are unverified."
-argument-hint: "[pipeline | <stage> <slug> | reconcile <ticket or plan>]"
+description: "Audit pipeline artifacts for gaps, inconsistencies, missing coverage and staleness: one document, cross-stage traceability across .gener8v/, or a ticket or externally-authored plan reconciled against the real codebase (Go / Blocked), then resolve the findings interactively. Use when asked to 'check the spec for gaps', 'sanity-check this plan before we build it' or 'does this ticket still match the code', before committing to a stage, or at milestones. Audits documents and plans, not code: for delivered code use code-review, quality-review or security-review."
+argument-hint: "[pipeline | stage slug | reconcile ticket-or-plan]"
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/../orchestrate/scripts/pipeline-context.sh *) Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py *)
+effort: xhigh
 ---
+
 # Audit Skill
 
 ## Purpose
@@ -86,77 +89,7 @@ Verify that an artifact's claims about the codebase are actually true — not wh
 
 ## Output Format
 
-Produce a markdown document with the following structure:
-
-```markdown
-# Audit Report — [Scope Description]
-
-## Summary
-
-[2-3 sentences: what was audited, how many findings, severity breakdown.]
-
-**Artifacts Audited:**
-- [File path] ([stage name])
-- ...
-
-**Findings:** [Total count]
-**Critical:** [Count] | **Gaps:** [Count] | **Warnings:** [Count] | **Suggestions:** [Count]
-
-## Findings
-
-### FIND-001: [Concise finding title]
-
-**Severity:** [Critical / Gap / Warning / Suggestion]
-**Location:** [File path and section where the issue exists]
-**Description:** [What the problem is]
-**Impact:** [What goes wrong downstream if this isn't addressed]
-**Recommendation:** [Specific action to resolve]
-**Status:** [Open / Resolved / Deferred / Dismissed]
-**Resolution:** [What was done, if resolved — filled in during interactive session]
-
----
-
-### FIND-002: ...
-
-## Coverage Matrix (Cross-Stage Audit only)
-
-### Capability Area → Specification Coverage
-
-| Capability Area (from PRD) | Spec | Constraints | Tech Design | Tickets | Delivered | CR | QR | SEC |
-|---------------------------|------|-------------|-------------|---------|-----------|----|----|-----|
-| [Area name] | Yes/No | Yes/No | Yes/No | Yes/No | [n/total] | [n/total] | [n/total] | [n/total] |
-
-### Change → Area Coverage
-
-| Change | Status | Area | Requirements (brief) | Tickets | Delivered | Done |
-|--------|--------|------|----------------------|---------|-----------|------|
-| [change-slug] | [brief Status] | [Area name] | [Adds/Modifies/Withdraws IDs, or (pending specification)] | [count] | [n/total] | [n/total] |
-
-### Requirement Traceability
-
-| Requirement | Specification | Ticket(s) | Covered |
-|-------------|---------------|-----------|---------|
-| REQ-001 | [slug].md | [change-slug]/[area-slug]/TICKET-001 | Yes |
-| REQ-002 | [slug].md | — | **No** |
-| NFR-001 | [slug].md | — | **No** (Warning) |
-
-### Open Questions Tally
-
-| Source Document | Open Questions | Resolved | Unresolved |
-|----------------|---------------|----------|------------|
-| prd.md | [count] | [count] | [count] |
-| specifications/[slug].md | [count] | [count] | [count] |
-| ... | ... | ... | ... |
-
-## Resolution Log
-
-[Record of decisions made during the interactive session.]
-
-| Finding | Decision | Action Taken | Artifact Updated |
-|---------|----------|-------------|-----------------|
-| FIND-001 | [User's decision] | [What was changed] | [File path] |
-| FIND-002 | Deferred | — | — |
-```
+Write the report in the shape of `assets/audit-report.md`. Read it before writing the report and keep its headings: the next audit reads the `## Resolution Log` to carry deferred findings forward, and `gener8v-state.py` counts the files under `.gener8v/audits/` to decide the pipeline stage.
 
 ---
 
@@ -203,11 +136,17 @@ The full check lists live in `references/checks.md` — open it at Process step 
 - **Warning**: Potential issue that may cause problems later. Worth reviewing but can proceed. Examples: subjective language in a requirement, a Large ticket that might benefit from splitting, a soft dependency not reflected in sequencing.
 - **Suggestion**: Improvement opportunity. Non-blocking. Examples: reworded requirement for clarity, additional user scenario, constraint that could be more specific.
 
+## Lint and Metrics
+
+The state script's deterministic checks ran when this skill was invoked:
+
+!`${CLAUDE_SKILL_DIR}/../orchestrate/scripts/pipeline-context.sh audit ${CLAUDE_PROJECT_DIR}`
+
 ## Process
 
 1. **Determine Scope**: Identify which artifacts exist in `.gener8v/` and whether this is a single-document, cross-stage, or reconciliation audit. A reconciliation audit also needs access to the live codebase, not just `.gener8v/`.
 
-2. **Read Artifacts**: Load all in-scope documents and `CONVENTIONS.md`. Note which expected artifacts are missing. Read prior audits so deferred findings are carried forward, not re-raised. Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" lint` when available and treat each line as a candidate finding; run `… metrics` for a cross-stage audit and keep the numbers as evidence for Warnings. For a reconciliation audit, also read the codebase ground truth the artifacts reference — schema/migrations, scripts, and the cited documents.
+2. **Read Artifacts**: Load all in-scope documents and `CONVENTIONS.md`. Note which expected artifacts are missing. Read prior audits so deferred findings are carried forward, not re-raised. Treat each line of the `lint` output in Lint and Metrics above as a candidate finding, and for a cross-stage audit keep the `metrics` numbers as evidence for Warnings. When that section says the state script is unavailable, run the same checks by hand from `references/checks.md`. After resolving findings that change artifacts, re-run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py lint` to confirm they clear. For a reconciliation audit, also read the codebase ground truth the artifacts reference — schema/migrations, scripts, and the cited documents.
 
 3. **Run Checks**: Open `references/checks.md` and apply every group that matches the artifacts in scope. For cross-stage audits, run single-document checks first, then cross-stage checks — including the Change Traceability and Approvals groups for every change under `changes/`. For reconciliation audits, run the Ground-Truth Reconciliation checks against the codebase and produce a Go / Blocked verdict.
 
@@ -235,6 +174,15 @@ The full check lists live in `references/checks.md` — open it at Process step 
 A cross-pipeline audit of the Support Documentation Search System with one change (`support-search`): a missing specification, a subjective requirement, a Draft-specification Warning, the per-change coverage view and the Resolution Log. See `references/example.md`. Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **Lint and Metrics says the state script is unavailable.** A copied install (only `skills/` is present) or no `python3`. Run the matching groups from `references/checks.md` by hand, and cite no metric: numbers in an audit come from `gener8v-state.py metrics`, never from the model's own counting.
+- **Lint and Metrics says the project has no `.gener8v/`.** There is nothing to audit, and this skill never generates the missing artifacts. Recommend Setup, then Planning (no source yet) or Brownfield (existing code).
+- **The `lint` output ends with `(exit 1)`.** Lint exits 1 whenever it prints an `ERROR`; the output above is still complete. Each `ERROR` is a candidate finding whose severity is decided by the Severity Levels, not by the lint label.
+- **A reconciliation audit cannot reach the code.** The artifacts sit in `.gener8v/` but the repository they describe — or one repository of a workspace — is not in the working tree. Do not return **Go** on assumptions nobody verified: record each one as a Gap and ask for access (`/add-dir`, or run from the workspace root).
+- **A finding still appears in `lint` after its fix was applied.** The fix went to a file the script no longer reads — most often a legacy per-area `tickets/<area-slug>.md` beside a `tickets/<area-slug>/` directory, which the script ignores once the directory exists. Apply the fix to the ticket file, then re-run `lint`.
+- **The session ended mid-resolution.** The report was written before the first finding was discussed (step 8). Resume from it: findings still `Open` are the ones left, and the Resolution Log holds every decision already made.
 
 ## Integration with Other Skills
 

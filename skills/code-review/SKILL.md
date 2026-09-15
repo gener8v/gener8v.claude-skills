@@ -1,8 +1,10 @@
 ---
 name: code-review
-description: "Review a delivered ticket against the pipeline: acceptance criteria, requirement coverage, constraints, architecture decisions and @spec annotations, producing traceability tables, findings and a verdict. Use after a delivery, in parallel with quality-review and security-review."
-argument-hint: "<capability area> <TICKET-XXX> [in <change-slug>]"
+description: "Review one delivered ticket against the pipeline: acceptance criteria, requirement coverage, constraints, architecture decisions and @spec annotations, producing traceability tables, findings and a verdict. Use after a delivery, in parallel with quality-review and security-review, when asked to 'review TICKET-003', 'check the delivery against the spec' or 'did we build what the ticket asked for'. Not for readability or tests on their own (quality-review), vulnerabilities (security-review), or code with no ticket behind it (quality-review on the files)."
+argument-hint: "[capability area] [TICKET-XXX] [in change-slug]"
+effort: xhigh
 ---
+
 # Code Review Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -53,110 +55,7 @@ The report is written as soon as findings are drafted (all `Open`) and updated f
 
 ## Output Format
 
-Produce a markdown document with the following structure. Every code path in it — Files Reviewed, Code Location, Location — is root-relative to the workspace root (`api/src/search/query.ts`), never relative to a repository inside it.
-
-```markdown
-# [Ticket ID]: [Ticket Title] — Code Review
-
-## Summary
-
-[2-3 sentences: what was reviewed, overall assessment, finding count.]
-
-**Delivery Record:** [file path]
-**Files Reviewed:**
-- [file path]
-- [file path]
-
-**Findings:** [Total count]
-**Critical:** [Count] | **Issues:** [Count] | **Observations:** [Count]
-
-## Traceability Check
-
-### Acceptance Criteria Coverage
-
-| Criterion | Satisfied | Evidence |
-|-----------|-----------|----------|
-| [Criterion text from ticket] | Yes / No / Partial | [File:line or function where this is demonstrated] |
-
-### Requirement Coverage
-
-| Requirement | Description | Code Location | Covered |
-|-------------|-------------|---------------|---------|
-| [XX]-REQ-XXX | [Brief description] | [file:line or function] | Yes / No / Partial |
-| [XX]-NFR-XXX | [Measurable target] | [benchmark, test or lint that verifies it — or "not executable"] | Yes / No / Partial |
-
-*[NFRs the ticket carries appear here like requirements. An NFR is Covered when the verification method the ticket names ran in the delivery record's Verification Run and met the target; one the record left Unverified is Partial and an Issue-level finding unless the ticket recorded it as non-executable.]*
-
-### Constraint Compliance
-
-| Constraint | Description | Respected | Evidence |
-|------------|-------------|-----------|----------|
-| [TC/CC/IC/OC]-XXX | [Brief description] | Yes / No / N/A | [How the code respects or violates] |
-
-*[Omit this section if no constraints analysis exists. Note "Constraints analysis not available — constraint compliance not verified."]*
-
-### Architecture Decision Adherence
-
-| Decision | Description | Followed | Evidence |
-|----------|-------------|----------|----------|
-| AD-XXX | [Brief description] | Yes / No / Partial | [How the code aligns or diverges] |
-
-*[Omit this section if no technical design exists. Note "Technical design not available — architecture adherence not verified."]*
-
-### @spec Annotation Coverage
-
-| Requirement | Expected Annotation | Code Location | Present |
-|-------------|-------------------|---------------|---------|
-| [XX]-REQ-XXX | `@spec [XX]-REQ-XXX` | [file:function] | Yes / No / Misplaced |
-
-**Coverage:** [X of Y requirements annotated]
-**Missing:** [List any requirements without `@spec` annotations — each is an Issue-level finding]
-**Specification table:** [Does `## @spec Coverage` in the specification list these locations? Yes / No — a mismatch is an Issue-level finding]
-
-### Verification Run
-
-| Command (from delivery record) | Re-run exit | Matches record |
-|--------------------------------|-------------|----------------|
-| `pytest tests/search -q` | 0 | Yes |
-
-*[A delivery record with no Verification Run, or one whose commands do not reproduce, is a Critical finding.]*
-
-## Delivery Decisions Review
-
-| Decision | Assessment | Notes |
-|----------|------------|-------|
-| DEL-XXX | [Reasonable / Questionable / Problematic] | [Why] |
-
-## Findings
-
-### CR-001: [Finding title]
-
-**Severity:** [Critical / Issue / Observation]
-**Location:** [root-relative path:line or function]
-**Traces To:** [REQ-XXX, AD-XXX, constraint ID, or acceptance criterion]
-**Description:** [What the problem is]
-**Impact:** [What goes wrong if not addressed]
-**Recommendation:** [Specific action to resolve]
-**Status:** [Open / Resolved / Deferred → TICKET-NNN or reason / Dismissed]
-**Resolution:** [What was done, if resolved — filled in during resolution]
-
----
-
-### CR-002: ...
-
-## Resolution Log
-
-| Finding | Decision | Action Taken | File Updated |
-|---------|----------|-------------|--------------|
-| CR-001 | [User's decision] | [What was changed] | [File path, if applicable] |
-| CR-002 | Deferred | — | — |
-
-## Verdict
-
-**Result:** [Approved / Approved with Notes / Changes Required]
-**Unresolved Findings:** [Count and severity breakdown, if any]
-**Notes:** [Any conditions on the approval or next steps]
-```
+Write the report in the shape of `assets/code-review-report.md` — Read it before writing and follow it exactly, headings and status lines included. `gener8v-state.py` parses its `**Result:**` line for the verdict and counts its `### CR-NNN` headings and `**Severity:**` lines for the metrics, so none of the three may be renamed or reformatted. Every code path in it — Files Reviewed, Code Location, Location — is root-relative to the workspace root (`api/src/search/query.ts`), never relative to a repository inside it.
 
 ---
 
@@ -227,6 +126,14 @@ It lives at `references/example.md` next to this file.
 Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **No delivery record matches the argument.** Record names use the area slug, not its display name — `search-and-retrieval-ticket-003-delivery.md` for `Search & Retrieval TICKET-003` — and sit under the ticket's change. With several changes active and no `in <change-slug>`, the wrong change was searched: ask. With no record in any change, the ticket was never delivered; stop and recommend Delivery.
+- **Orchestrate still lists the code review as missing after the report was written.** The state script opens exactly `.gener8v/changes/<change-slug>/reviews/<area-slug>-ticket-nnn-code-review.md` — area slug, lowercase `ticket-nnn`, inside the ticket's change. A report named `TICKET-003-code-review.md`, filed under another change, or written to the top-level `.gener8v/reviews/` (system assessments only) is invisible to it. Move or rename the file; never leave two copies.
+- **The ticket exists only as a section of `tickets/<area-slug>.md`.** That is the legacy per-area file, read as change `initial` when the whole layout is legacy. Review against the section, and recommend `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py split-tickets --remove` in the Verdict's Notes: a deferral appends its Known Hazard to the ticket's own file, and until the split there is none.
+- **A Verification Run command fails for a reason outside the code** — a service that is not running, a variable the record expects. It is still Critical under step 8b: nothing about the ticket is proven from where the reviewer stands. Say which failure it was, so resolution fixes the environment or the record's command rather than the code.
+- **The `code-reviewer` agent returned without a report path.** The findings phase ends at step 11 by writing the report; an agent that stops at its turn limit returns partial output instead. Resolution needs a report with every finding `Open` — resume or re-launch the agent on the same ticket, or run steps 1–11 in the main session, before starting step 12.
 
 ## Integration with Other Skills
 

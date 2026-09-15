@@ -1,9 +1,11 @@
 ---
 name: delivery
-description: "Implement one ticket: reconcile its assumptions against the real codebase, get an implementation plan approved, write the code with @spec annotations, and keep the delivery record current from plan approval onward. The only skill that changes source code. Use when a ticket's dependencies are delivered and it is ready to build."
-argument-hint: "<capability area> <TICKET-XXX> [in <change-slug>]"
+description: "Implement one ticket: reconcile its assumptions against the real codebase, get an implementation plan approved, write the code with @spec annotations, and keep the delivery record current from plan approval onward. The only skill that changes source code. Use when a ticket's dependencies are delivered and it is ready to build, such as 'implement TICKET-004' or 'deliver the next ticket'. Not for writing tickets (ticket-breakdown) or reviewing delivered code (code-review)."
+argument-hint: "[capability area] [TICKET-XXX] [in change-slug]"
 disable-model-invocation: true
+allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py *)
 ---
+
 # Delivery Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -46,7 +48,7 @@ Use this skill when:
 **If input is missing or malformed:**
 - If several changes are active and none is named, ask which one before reading anything
 - If no `tickets/<capability-area-slug>/TICKET-XXX.md` exists for the target under the change, stop and recommend running the Ticket Breakdown skill first (`ticket-breakdown <area> for <change-slug>`)
-- Legacy: if the area's tickets exist only as a per-area file `tickets/<capability-area-slug>.md` holding `### TICKET-NNN:` sections, recommend `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" split-tickets` and deliver from the resulting ticket file — never from the legacy shape
+- Legacy: if the area's tickets exist only as a per-area file `tickets/<capability-area-slug>.md` holding `### TICKET-NNN:` sections, recommend `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py split-tickets` and deliver from the resulting ticket file — never from the legacy shape
 - If predecessor tickets have not been delivered, warn the user — the ticket's Prior Art may reference files that do not yet exist
 - If technical design or constraints are missing, proceed but note the gap — implementation decisions may lack architectural context
 
@@ -68,126 +70,7 @@ Delivery also appends rows to the living specification's `## @spec Coverage` tab
 
 ## Output Format
 
-Produce a markdown document with the following structure:
-
-```markdown
-# [Ticket ID]: [Ticket Title] — Delivery Record
-
-## Ticket Reference
-
-**Ticket:** [<change-slug>/<capability-area-slug>/TICKET-XXX]
-**Change:** [`.gener8v/changes/<change-slug>/change.md` — and its Status at the time delivery started]
-**Specification:** [Link to specification file]
-**Requirements Covered:**
-- [XX]-REQ-XXX: [Brief description]
-- [XX]-REQ-XXX: [Brief description]
-- [XX]-NFR-XXX: [Brief description — and the verification method the ticket names for it]
-
-## Pre-Flight Reconciliation
-
-**Verdict:** [Go / Blocked]
-
-| Assumption (from ticket) | Expected | Found in repo | Status |
-|--------------------------|----------|---------------|--------|
-| [e.g., table `document_index` exists] | present | not in schema.ts or migrations | ❌ Blocking |
-| [e.g., `scripts/build-index.sh` exists] | present | absent | ❌ Blocking |
-| [e.g., Prior Art document present at the pinned version] | v1.4 | v1.2 in repo | ❌ Blocking |
-| [e.g., `documents.source_ref` nullable] | nullable | NOT NULL (`api/src/db/schema.ts:NNNN`) | ⚠️ Resolves a Decision Point → Path A |
-| [e.g., predecessor TICKET-002 output exists] | `api/src/search/index-client.ts` | present | ✅ |
-| [Carried finding: `<change-slug>/<capability-area-slug>-ticket-001-code-review/CR-001` deferred to this ticket] | addressed here | — | 🔁 Carried — see Implementation Plan |
-
-**Resolved from ground truth (not escalated):** [Open questions / Decision Points the ticket left for the user that the code already answers, with evidence — e.g., "PDF approach: repo already depends on `pdfkit`, so the jsPDF-vs-Puppeteer choice is moot."]
-
-**Blocking findings:** [If Verdict is Blocked, what must exist before this ticket can be delivered, and which skill/action produces it. If Go, state "None."]
-
-## Implementation Plan
-
-**Repository:** [directory from `context.md`'s `## Repositories` table — `.` for a single repository; its verify commands and the commit belong to it. An atomic ticket that must touch two repositories names both.]
-**Plan approved by:** [Engineer — <name>, YYYY-MM-DD — or `pending` until Phase 2 approval]
-
-[The plan as approved by the user in Phase 2. Preserved verbatim so
-deviations can be compared against the original intent. Written the moment it is approved.]
-
-### Planned Files
-
-- [root-relative file path]: [what it will contain and why]
-- [root-relative file path]: [what it will contain and why]
-
-### How Acceptance Criteria Will Be Met
-
-- [Criterion]: [How the plan addresses it — and which test will prove it]
-- [Criterion]: [How the plan addresses it]
-
-## Progress
-
-[One line per planned file, updated as each lands. This is what a resumed session reads first.]
-
-- [x] `src/search/query_input.py` — written, annotated
-- [ ] `tests/search/test_query_input.py` — pending
-
-## Delivery Summary
-
-**Status:** [Reconciled / In Progress / Delivered / Partial / Blocked]
-**Verification:** [passed / failed / not run]
-**Reviews Deferred:** [none — or `quality, security — <reason>` when the scale decision defers a review; the ticket can still reach done]
-**Files Produced:**
-- [root-relative file path]: [what was actually created or modified — brief description]
-- [root-relative file path]: [what was actually created or modified — brief description]
-
-## Verification Run
-
-[The commands actually executed, verbatim, with exit codes. Sourced from the named repository's Verify commands in `context.md`'s `## Repositories` table (or its testing and build sections) or the repository's own scripts. Includes every NFR check the ticket carries that is executable — a benchmark, a load test, an accessibility lint. "Tests pass" without a command and an exit code is not verification.]
-
-| Command | Exit | Evidence |
-|---------|------|----------|
-| `pytest tests/search -q` | 0 | 6 passed |
-| `ruff check src/search` | 0 | — |
-| `mypy src/search` | 0 | — |
-
-## Acceptance Criteria Verification
-
-- [x] [Criterion from ticket] — [the executed test or command that proves it, from the Verification Run]
-- [x] [Another criterion] — [how it was satisfied]
-- [ ] [Unverified criterion] — [it is implemented but no executed check covers it; say what would]
-- [ ] [XX]-NFR-XXX [non-executable NFR] — Unverified; [what would verify it — the method the specification names, and who runs it]
-- [ ] [Unsatisfied criterion, if any] — [why not met, what is needed]
-
-## Decisions Made
-
-### DEL-001: [Decision title]
-
-**Context:** [What prompted this decision during implementation]
-**Decision:** [What was decided]
-**Rationale:** [Why this choice over alternatives]
-**Ticket Impact:** [How this affected the implementation vs. what the ticket specified]
-
-### DEL-002: ...
-
-## Deviations from Plan
-
-[What changed from the approved implementation plan and why.
-If nothing changed, state "None — implementation followed the approved plan."]
-
-- [Deviation description]: [Why it was necessary and what impact it has on downstream tickets]
-
-## @spec Annotations
-
-| Requirement | Code Location | Annotation |
-|-------------|---------------|------------|
-| [XX]-REQ-XXX | [root-relative file:function or class] | `@spec [XX]-REQ-XXX` |
-
-[Any requirements that could not be annotated, with explanation.]
-
-## Notes
-
-[Implementation observations, warnings for downstream tickets,
-performance considerations, or anything the next developer should know.]
-
-## Post-Review Amendments
-
-[Appended by the review skills during interactive resolution. One entry per applied change:
-finding ID (qualified, e.g. `support-search/search-and-retrieval-ticket-001-code-review/CR-002`), what changed, files touched, re-verification result. "None" until a review changes something.]
-```
+Write the delivery record in the shape of `assets/delivery-record.md`. Read it before creating the record and follow it exactly, headings and status lines included: `gener8v-state.py` parses the `**Status:**`, `**Verification:**` and `**Reviews Deferred:**` lines and whether `## Post-Review Amendments` holds anything other than `None`, and the plugin's hooks look for `**Status:** In Progress`. A record that drifts from the shape is misread by both.
 
 ---
 
@@ -292,6 +175,14 @@ It is at `skills/delivery/references/example.md`.
 Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **Pre-Flight Reconciliation finds a blocking assumption false.** The ticket was written against a repository that does not exist yet — a missing table, script or pinned document. The record says `Blocked` with what must exist first; the fix is upstream, not in this delivery: deliver the predecessor that produces it, or amend the ticket through Ticket Breakdown (an Audit in reconciliation mode checks the amended ticket before the next attempt). Never build the missing prerequisite inside this ticket — that is the scope creep the gate exists to stop.
+- **Context was compacted, or the session ended, mid-delivery.** The plugin's SessionStart hook says so and points at the record. Re-read its Pre-Flight Reconciliation and approved Implementation Plan, continue from the first unticked line in `## Progress`, and do not re-plan or ask for approval again — the approval is already recorded.
+- **The turn is sent back because source changed after the record was last updated.** The plugin's Stop hook saw a delivery `In Progress` and source files newer than its record. Tick `## Progress`, add any DEL-XXX decision or deviation the change implies, then finish. If the change is not part of this delivery (a trivial fix alongside it), say so in the reply; the hook sends a turn back only once.
+- **Writing code raises "no delivery is In Progress".** The plugin's PreToolUse hook looks for the exact line `**Status:** In Progress` in a delivery record. Either the plan's approval was never recorded (the record still says `Reconciled` — do step 7 first) or the status line was reworded; restore it to the template's form.
+- **A verification check fails for a reason outside the ticket.** A pre-existing failing test or lint rule is still recorded in `## Verification Run` with its exit code, `**Verification:** failed`, and the delivery is `Partial` with the cause named. Fixing adjacent code is a separate ticket, not this one.
 
 ## Integration with Other Skills
 

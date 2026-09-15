@@ -1,8 +1,9 @@
 ---
 name: technical-design
-description: "Translate specifications, constraints and dependencies into architecture decisions (AD-XXX), component boundaries, data model and interface contracts under .gener8v/technical-design/. Use when technology or architecture choices must be settled before tickets are written; skip when the approach is obvious and uncontested."
+description: "Translate specifications, constraints and dependencies into architecture decisions (AD-XXX), component boundaries, data model and interface contracts under .gener8v/technical-design/. Use when technology or architecture choices must be settled before tickets are written, such as 'which datastore should we use' or 'design the components for search'. Skip it when the approach is obvious and uncontested. Not for judging an architecture that has already shipped (architecture-review)."
 argument-hint: "[capability area | system]"
 ---
+
 # Technical Design Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -58,92 +59,7 @@ Run this skill once per capability area that warrants technical design, or once 
 
 ## Output Format
 
-Produce a markdown document with the following structure:
-
-```markdown
-# [Capability Area or System Name] — Technical Design
-
-## Overview
-
-[2-3 sentences summarizing the key architectural approach and the most
-significant decisions made.]
-
-## Source Context
-
-**Specifications Analyzed:** [List of specification files]
-**Constraints Analysis:** [File path, or "Not yet performed"]
-**Dependency Map:** [File path, or "Not yet performed"]
-**System Context:** [File path, or "Not available"]
-**Status:** [Draft / Approved]
-**Approved by:** [Architect — name, YYYY-MM-DD — or "pending"]
-
-## Architecture Decisions
-
-### AD-001: [Decision Title]
-
-**Context:** [Why this decision needs to be made — what tension or trade-off exists]
-**Decision:** [What was decided]
-**Rationale:** [Why this option over alternatives]
-**Alternatives Considered:**
-- [Alternative A] — [Why rejected]
-- [Alternative B] — [Why rejected]
-**Consequences:** [What this decision enables and what it constrains going forward]
-**Requirements Affected:** [PREFIX-REQ-XXX IDs this decision shapes]
-
-### AD-002: ...
-
-## Component Design
-
-### [Component Name]
-
-**Responsibility:** [What this component does — one sentence]
-**Repository:** [Directory from `context.md`'s `## Repositories` table — required when the workspace has several repositories, omit for a single repository]
-**Interfaces:**
-- [Interface name]: [What it accepts and returns]
-**Dependencies:** [Other components or external systems this relies on]
-**Requirements Served:** [PREFIX-REQ-XXX and PREFIX-NFR-XXX IDs]
-
-## Data Model
-
-### [Entity or Data Store Name]
-
-**Purpose:** [Why this data exists]
-**Key Fields:**
-- [field]: [type/description]
-**Relationships:** [How this relates to other data entities]
-**Source:** [Where this data comes from — user input, external system, derived]
-
-## Interface Contracts (if applicable)
-
-### [Interface Name]
-
-**Between:** [Component A] ↔ [Component B]
-**Purpose:** [What this interface enables]
-**Input:** [What is provided]
-**Output:** [What is returned]
-**Error Cases:** [How failures are communicated]
-
-## Infrastructure Requirements
-
-- [Requirement]: [Why needed — which decisions or components drive this, and which PREFIX-NFR-XXX targets it serves]
-
-## Technical Risks
-
-- **TR-001**: [Risk statement]
-  - *Likelihood:* [High / Medium / Low]
-  - *Impact:* [What goes wrong if this risk materializes — name the NFR that would be missed]
-  - *Mitigation:* [How to reduce likelihood or impact]
-  - *Related Constraints:* [Constraint IDs, if applicable]
-  - *Related NFRs:* [PREFIX-NFR-XXX IDs this risk threatens, or "—"]
-
-## Open Technical Questions
-
-- [ ] **TQ-001**: [Question that must be answered before or during implementation]
-
-## Assumptions
-
-- Assumption: [Technical assumption that, if wrong, would change the design]
-```
+Write the design in the shape of `assets/technical-design.md`. Read it before writing and follow it exactly. `scripts/gener8v-state.py` reads the first `**Status:**` line in the file as the design's approval state, so Source Context stays above the Architecture Decisions — a decision marked `**Status:** Superseded by AD-XXX` must never be the first. Lint flags any requirement or NFR ID the design cites that exists in no specification.
 
 ---
 
@@ -202,6 +118,14 @@ See `references/example.md` in this skill's directory.
 Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **The specification behind the design is still Draft.** Design anyway — approval never blocks the next stage — but record the specification's state in Source Context and ask for its approval before tickets are cut; Audit warns on a design produced from an unapproved specification.
+- **An architecture decision contradicts the specification's wording.** Record the decision with the requirement under *Requirements Affected*; do not edit the specification to match — requirement text changes only through a change, with its `*(amended … by <change-slug>)*` tag. Ticket Breakdown turns the supersession into a Known Hazard on every ticket that implements the requirement.
+- **A decision is reversed after tickets or code cite it.** Keep the old decision, marked `**Status:** Superseded by AD-XXX`, and add the replacement above the current maximum AD ID (Revisions); the design returns to Draft until the Architect approves again. The decision-level status stays below Source Context — the state script reads the first `**Status:**` line in the file as the design's approval.
+- **Lint reports `technical-design/<file>.md references requirement IDs that exist in no specification`.** A *Requirements Affected*, *Requirements Served* or *Related NFRs* line cites a mistyped ID, or one from an area not yet specified. Correct it; a design element that serves no existing requirement is the hypothetical need Design for the Requirements says to call out.
+- **The workspace holds several repositories but `context.md` has no `## Repositories` table.** Component paths cannot be made root-relative with confidence. Record the missing repository map as an Open Technical Question and cite only paths the repository itself confirms (Process step 1b); do not guess which repository a component lives in.
 
 ## Integration with Other Skills
 

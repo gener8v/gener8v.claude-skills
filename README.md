@@ -164,6 +164,15 @@ Building and sweeping are different modes, so the skill forks into the `defect-s
 **Input:** A subsystem, named by directory, feature or entry point (no `.gener8v/` artifacts required)
 **Output:** `.gener8v/sweeps/[subsystem-slug]-sweep.md` — findings ordered by consequence, classes swept clean, and a verdict that names the tickets to raise
 
+### [Rot Watch](./skills/rot-watch/)
+
+Detects decay in code that is being actively written. Quality Review judges one delivery against one diff; rot is a trend, invisible to any reviewer who only sees the change in front of them. Rot Watch measures six signals — packaging drift, dependency direction against the technical design, comment language, growth slopes, tests, and the detectable subset of SOLID — against a recorded baseline and reports only what moved. The highest-value finding is a weakened assertion: it passes CI, survives review, and silently stops protecting what it was written for.
+
+The first run records the baseline and reports nothing, by design. Orchestrate recommends a watch once code is delivered and again every three deliveries, from the delivery count the baseline records.
+
+**Input:** Delivered code, the previous baseline, the technical design's declared shape
+**Output:** `.gener8v/rot/rot-YYYY-MM-DD.md` (movements with severity, attribution and correction) + a regenerated `.gener8v/rot/baseline.md`
+
 ### [Audit](./skills/audit/)
 
 Reviews pipeline artifacts for gaps, inconsistencies, missing coverage, and unresolved ambiguity. Works interactively with the user to resolve findings, writing the report first and updating it as decisions are made. Covers the full pipeline — PRD through reviews, plus change briefs, flow maps, sweeps and assessments — with cross-stage checks that trace requirements from specification through delivery, verify review verdicts against `pipeline-state.yaml`, confirm IDs have never been renumbered, and warn when a stage was produced from an unapproved upstream. A reconciliation mode checks a ticket or externally-authored plan against the real codebase (Go / Blocked). The check lists live in `references/checks.md`.
@@ -182,15 +191,20 @@ Reports where the pipeline stands and what to run next. The inventory is determi
 
 The skills are prose; a few things need to be mechanical. The plugin ships:
 
-- **`hooks/hooks.json`** — three hooks, active only when the project has a `.gener8v/` directory:
+- **`hooks/hooks.json`** — six hooks, active only when the project has a `.gener8v/` directory. The file tools and Bash are both watched, because Claude edits through the shell (`sed -i`, heredocs, redirects) as often as through Write and Edit:
   - `SessionStart` (startup, resume, clear, compact): regenerates `pipeline-state.yaml`, injects a compact summary with next steps, and appends a line to `runs.jsonl`. After a compaction it also points the session at any delivery record that is `In Progress`. Nobody has to remember to run `/orchestrate`.
-  - `PreToolUse` on Write/Edit: denies hand-edits to `pipeline-state.yaml` (it is generated), and adds a one-line reminder when source is edited while no delivery is in progress. It does not block — reviews, Brownfield and trivial fixes legitimately touch source.
-  - `PostToolUse` on Write/Edit: regenerates the state file after any write under `.gener8v/` and logs the write to `runs.jsonl`.
-- **`agents/`** — `code-reviewer`, `quality-reviewer`, `security-reviewer` (the findings phase of each review, safe to run in parallel because they only write their report) and `defect-sweeper` (the fresh pass Defect Sweep forks into).
+  - `PreToolUse` on Write/Edit/NotebookEdit/Bash: denies hand-edits to `pipeline-state.yaml` (it is generated), whether through a file tool or a shell command; denies a reviewer agent any write outside `.gener8v/` (the sweeper may also write a failing test as proof); and adds a one-line reminder when source is edited while no delivery is in progress. The reminder does not block — Brownfield and trivial fixes legitimately touch source.
+  - `PostToolUse` on Write/Edit/NotebookEdit/Bash: regenerates the state file after any write under `.gener8v/` — for a shell command, whenever an artifact is newer than the state file — and logs the write to `runs.jsonl`.
+  - `Stop`: when a delivery record is `In Progress` and source changed after the record was last written, sends the turn back once to update the record's Progress. Each change is reported once per session.
+  - `SubagentStart` / `SubagentStop` on the four plugin agents: snapshot the working tree, and send a reviewer back if one of its own shell commands changed a file outside `.gener8v/`. Files the main session edited while a review ran in the background are not attributed to the reviewer.
+- **`agents/`** — `code-reviewer`, `quality-reviewer`, `security-reviewer` (the findings phase of each review, safe to run in parallel because they only write their report) and `defect-sweeper` (the fresh pass Defect Sweep forks into). Each runs at `effort: xhigh` with `maxTurns: 200` as a runaway guard. Plugin agents ignore `permissionMode` and `hooks` in their own frontmatter, so "your only write is the report" is enforced by the plugin's hooks above.
 - **`scripts/gener8v-state.py`** — `state` writes the YAML (schema version 4: living coverage per area, one entry per change with its tickets, active changes, approvals pending); `summary` prints what the hook injects; `lint` reports prefix collisions, requirements and NFRs in no ticket, tickets missing required sections, a ticket directory with no `backlog.md`, a legacy per-area ticket file, delivered requirements with no `@spec` annotation, dangling references, and change briefs that disagree with the specifications; `metrics` derives verdict distributions, finding counts, rework rate, verification pass rate, deferred reviews, approvals pending, sweep findings, lead time (from git) and session counts (from `runs.jsonl`); `split-tickets` turns a legacy per-area ticket file into the one-file-per-ticket directory plus `backlog.md` (`--remove` deletes the original). Python 3, no dependencies.
 - **`scripts/check-install.sh`** — reports drift between the repository and a copied `~/.claude/skills/` install (and, once the plugin is installed, which copies still linger).
 - **`skills/flow-mapping/scripts/validate-flows.sh`** — the Flow Mapping gate.
-- **`skills/*/references/`** — worked examples (one canonical project across every skill), Audit's check lists, Defect Sweep's defect classes, and the conventions Setup installs. Loaded when a skill needs them, not on every invocation.
+- **`skills/orchestrate/scripts/pipeline-context.sh`** — runs the state script when Orchestrate or Audit is invoked, so its output is already in the skill when the model reads it (`` !`…` `` injection). Always exits 0 — a failing injected command aborts the whole skill — and says so in one line under a copied install or in a project with no `.gener8v/`.
+- **`skills/*/references/`** — worked examples (one canonical project across every skill), Audit's check lists, Defect Sweep's defect classes, the conventions Setup installs, and Orchestrate's by-hand scan for copied installs. Loaded when a skill needs them, not on every invocation.
+- **`skills/*/assets/`** — the output templates (PRD, change brief, specification, constraints, dependency map, technical design, ticket, backlog, delivery record, the review, sweep, rot and audit reports, Orchestrate's status layout). A skill reads its template before writing the artifact, so the template is not in context on the invocations that amend or resolve rather than write.
+- **`evals/`** — the `claude plugin eval` suite: routing cases that check each natural request reaches the right skill and not its nearest sibling, and functional cases over a shared fixture project. See [evals/README.md](./evals/README.md).
 
 Running the script by hand (the hooks and Orchestrate do this for you):
 
@@ -281,29 +295,47 @@ skills/
   flow-mapping/scripts/validate-flows.sh
   defect-sweep/SKILL.md            # Subsystem → perimeter defect sweep (forks into defect-sweeper)
   defect-sweep/references/defect-classes.md
+  rot-watch/SKILL.md               # Delivered code → decay against a recorded baseline
   audit/SKILL.md                   # Any artifact(s) → audit report
   audit/references/checks.md       # The check lists, by artifact and across stages
   orchestrate/SKILL.md             # Pipeline status + pipeline-state.yaml + metrics
+  orchestrate/scripts/pipeline-context.sh   # State script output injected into Orchestrate and Audit
+  orchestrate/references/manual-state.md    # The scan and the state file, by hand (copied installs)
   */references/example.md          # One canonical worked example, per skill
+  */assets/*.md                    # Output templates, read before an artifact is written
 agents/
   code-reviewer.md                 # Findings phase of Code Review, fresh context
   quality-reviewer.md              # Findings phase of Quality Review
   security-reviewer.md             # Findings phase of Security Review
   defect-sweeper.md                # The fresh pass Defect Sweep forks into
 hooks/
-  hooks.json                       # SessionStart / PreToolUse / PostToolUse
+  hooks.json                       # SessionStart / PreToolUse / PostToolUse / Stop / SubagentStart / SubagentStop
 scripts/
   gener8v-state.py                 # state | summary | lint | metrics | split-tickets  (Python 3, no dependencies)
   session-start.sh                 # SessionStart hook
-  pre-write.sh                     # PreToolUse hook
-  post-write.sh                    # PostToolUse hook
+  hook.sh                          # Entry point for the other hooks (silent outside .gener8v/ projects)
+  hooks.py                         # pre-tool | post-tool | stop | subagent-start | subagent-stop
+  test-hooks.sh                    # Deterministic hook tests against a copy of the eval fixture
   check-install.sh                 # Drift check for copied installs
+evals/
+  routing/<skill>/                 # A natural request → the right skill, not its nearest sibling
+  functional/<case>/               # Orchestrate's next step, Rot Watch's first run, a hand edit of the state file
+  fixture/project/                 # The support-search project every scaffolded case starts from
 .claude-plugin/
   plugin.json                      # Plugin manifest (name: gener8v)
   marketplace.json                 # Marketplace listing
 ```
 
-Every `SKILL.md` carries YAML frontmatter — `name`, a trigger `description`, an `argument-hint` for per-target skills (`<capability area> [for <change-slug>]` on Specification and Ticket Breakdown; `<capability area> <TICKET-XXX> [in <change-slug>]` on Delivery and the reviews — the change is optional when exactly one is active), `disable-model-invocation` on the three that change the repository or `CLAUDE.md` (Setup, Brownfield, Delivery), and `context: fork` + `agent: defect-sweeper` on Defect Sweep. Per-target skills read `$ARGUMENTS` and ask for the target if it is missing.
+Every `SKILL.md` carries YAML frontmatter:
+
+- `name` and a `description` shaped *what it does · when to use it, in the words a user would say · what it is not for, naming the sibling skill that is* — the "not for" clause is what keeps nine review-shaped skills from being confused with one another
+- `argument-hint` on per-target skills (`[capability area] [for change-slug]` on Specification and Ticket Breakdown; `[capability area] [TICKET-XXX] [in change-slug]` on Delivery and the reviews — the change is optional when exactly one is active). No angle brackets anywhere in frontmatter
+- `disable-model-invocation` on the three that change the repository or `CLAUDE.md` (Setup, Brownfield, Delivery)
+- `context: fork` on the skills that must not inherit the conversation: Defect Sweep (into `agent: defect-sweeper`), Architecture Review and both OWASP assessments
+- `allowed-tools` pre-approving exactly the plugin commands the skill runs — the state script, the context script, the Flow Mapping gate — in the exact form the body gives them
+- `effort: xhigh` on the reviews, sweeps, assessments, Rot Watch and Audit. The default effort is already `high`, so `high` would change nothing
+
+Per-target skills read `$ARGUMENTS` and ask for the target if it is missing.
 
 ### Pipeline Artifacts (`.gener8v/`)
 
@@ -419,7 +451,7 @@ If the skills were previously copied into `~/.claude/skills/`, move those copies
 
 ```bash
 mkdir -p ~/.claude/skills-backup-gener8v
-for s in architecture-review audit brownfield code-review constraints defect-sweep delivery dependencies flow-mapping orchestrate owasp-llm-top10-review owasp-top10-review planning quality-review security-review setup specification technical-design ticket-breakdown; do
+for s in architecture-review audit brownfield code-review constraints defect-sweep delivery dependencies flow-mapping orchestrate owasp-llm-top10-review owasp-top10-review planning quality-review rot-watch security-review setup specification technical-design ticket-breakdown; do
   [ -d ~/.claude/skills/$s ] && mv ~/.claude/skills/$s ~/.claude/skills-backup-gener8v/
 done
 ```
@@ -433,7 +465,7 @@ git clone https://github.com/gener8v/gener8v.claude-skills.git
 cp -r gener8v.claude-skills/skills/* ~/.claude/skills/
 ```
 
-This installs the nineteen skills and nothing else: no hooks, no agents, no `gener8v-state.py`. Orchestrate maintains `pipeline-state.yaml` by hand, the Flow Mapping gate is at `~/.claude/skills/flow-mapping/scripts/validate-flows.sh`, and there is no update mechanism — `scripts/check-install.sh` reports drift.
+This installs the twenty skills and nothing else: no hooks, no agents, no `gener8v-state.py`. Orchestrate maintains `pipeline-state.yaml` by hand, the Flow Mapping gate is at `~/.claude/skills/flow-mapping/scripts/validate-flows.sh`, and there is no update mechanism — `scripts/check-install.sh` reports drift.
 
 ## The macOS utilities moved
 
@@ -447,9 +479,15 @@ claude plugin install macos@gener8v-macos
 
 ## For maintainers
 
-- **Releasing:** bump `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` for any change to `hooks/`, `agents/` or `scripts/` — the installed plugin is cached by version, and `claude plugin update` only fetches a new one. Skill-only edits are picked up the same way; there is no separate publish step beyond merging to `main`.
-- **Hooks:** `hooks/hooks.json` is loaded automatically. Do not list it under `hooks` in `plugin.json` — that registers it twice and the plugin fails to load ("Duplicate hooks file detected"). Hook commands use `${CLAUDE_PLUGIN_ROOT}` and must stay executable (`chmod +x scripts/*.sh`).
-- **Before merging:** `claude plugin validate .`; `bash -n scripts/*.sh skills/flow-mapping/scripts/validate-flows.sh`; `python3 -m py_compile scripts/gener8v-state.py`; and run the script's `state`, `lint` and `metrics` against a project with a `.gener8v/` (a fixture with one change, a delivered ticket and a legacy remnant catches most regressions).
+- **Releasing:** bump `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` for any change to `hooks/`, `agents/` or `scripts/` — the installed plugin is cached by version, and `claude plugin update` only fetches a new one. Skill-only edits are picked up the same way; there is no separate publish step beyond merging to `main`. `claude plugin tag` creates the `gener8v--vX.Y.Z` tag and fails if the two versions disagree.
+- **Hooks:** `hooks/hooks.json` is loaded automatically. Do not list it under `hooks` in `plugin.json` — that registers it twice and the plugin fails to load ("Duplicate hooks file detected"). Hook commands use `${CLAUDE_PLUGIN_ROOT}` and must stay executable (`chmod +x scripts/*.sh scripts/*.py`). A hook must never crash a session: `hooks.py` swallows its own failures, and `hook.sh` exits silently outside `.gener8v/` projects and without `python3`.
+- **Writing a skill:**
+  - Description: what · when, with phrases a user would say · "Not for …" naming the sibling. Under 1,024 characters (the listing truncates at 1,536), no `<` or `>` in any frontmatter field.
+  - `allowed-tools` matches command strings, so the body must give the command in exactly the form the rule names — unquoted `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py …`, `${CLAUDE_SKILL_DIR}/scripts/…`. A quoted path does not match.
+  - An injected `` !`command` `` that exits non-zero aborts the whole skill, and one that is not pre-approved does too. Inject only scripts that always exit 0 and are listed in `allowed-tools`, and make them degrade to one line under a copied install.
+  - Output templates live in `assets/`, byte-for-byte the shape `gener8v-state.py` parses; the SKILL.md pointer names the lines it parses.
+- **Before merging:** `claude plugin validate .` and `claude plugin validate skills`; `bash -n scripts/*.sh skills/*/scripts/*.sh`; `python3 -m py_compile scripts/gener8v-state.py scripts/hooks.py`; `scripts/test-hooks.sh` (no model calls); run the script's `state`, `lint` and `metrics` against `evals/fixture/project`; and run the eval suite for anything that changes a description, a hook or a skill's output (see [evals/README.md](./evals/README.md)).
+- **After a release:** `/skill-doctor` in a working session shows per-skill use and cost over the last seven days — a skill that never fires usually has a description problem, which the routing evals can then reproduce.
 - **Conventions first:** a change to a path, a vocabulary word or an ID rule is made in `skills/setup/references/conventions.md`, then in every skill that mentions it, then in `scripts/gener8v-state.py` — with `schema_version` bumped when the state file's shape changes.
 
 ## License

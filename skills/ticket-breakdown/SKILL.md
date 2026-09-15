@@ -1,8 +1,10 @@
 ---
 name: ticket-breakdown
-description: "Decompose one capability area's requirements for one change into implementable tickets with Priority, Value, acceptance criteria, Prior Art, Output contracts, Known Hazards, dependency ordering and relative sizing — one TICKET-NNN.md per ticket plus backlog.md — at .gener8v/changes/<change-slug>/tickets/<area-slug>/. Use when a specification is approved and the team needs work items."
-argument-hint: "<capability area> [for <change-slug>]"
+description: "Decompose one capability area's requirements for one change into implementable tickets with Priority, Value, acceptance criteria, Prior Art, Output contracts, Known Hazards, dependency ordering and relative sizing: one TICKET-NNN.md per ticket plus backlog.md, in the change's tickets directory. Use when a specification is approved and the team needs work items, such as 'break this spec into tickets' or 'create the backlog for search'. Not for implementing a ticket (delivery) or ordering whole capability areas (dependencies)."
+argument-hint: "[capability area] [for change-slug]"
+allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py *)
 ---
+
 # Ticket Breakdown Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -54,7 +56,7 @@ Use this skill when:
 
 Run this skill once per change and capability area. Ticket IDs restart at TICKET-001 in every `tickets/<area-slug>/` directory; from any other document a ticket is referenced qualified — `<change-slug>/<area-slug>/TICKET-003` (`CONVENTIONS.md` §4). The output feeds Delivery, which implements one ticket at a time from that ticket's own file.
 
-**Legacy shape:** a per-area file `tickets/<area-slug>.md` holding `### TICKET-NNN:` sections is still read by the state script (with a warning). Never write it. If the target area exists only in that shape, convert it first with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py" split-tickets` (add `--remove` to delete the originals after the split), then add tickets to the resulting directory.
+**Legacy shape:** a per-area file `tickets/<area-slug>.md` holding `### TICKET-NNN:` sections is still read by the state script (with a warning). Never write it. If the target area exists only in that shape, convert it first with `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gener8v-state.py split-tickets` (add `--remove` to delete the originals after the split), then add tickets to the resulting directory.
 
 ## Output Format
 
@@ -62,106 +64,13 @@ Two templates. Every ticket is its own file; the area-level narrative lives in `
 
 ### Ticket file — `TICKET-NNN.md`
 
-```markdown
-# TICKET-001: [Concise action-oriented title]
-
-**Change:** [change-slug]
-**Capability Area:** [Area name] ([area-slug])
-**Specification:** specifications/[area-slug].md
-
-**Summary:** [1-2 sentences describing what this ticket accomplishes]
-**Priority:** [Must / Should / Could — from the change brief's Priority Cut]
-**Value:** [One sentence — what the user or operator gets when this lands]
-
-**Requirements Covered:**
-- [XX]-REQ-001: [Brief description]
-- [XX]-REQ-002: [Brief description]
-- [XX]-NFR-001: [target — verified by … — NFR IDs are listed exactly like REQ IDs]
-
-**Prior Art:** [What to read/understand before starting. For tickets with
-no dependencies, point to relevant pipeline documents. For tickets that
-depend on other tickets, specify the files and directories produced by
-those tickets that this work builds on.]
-- Read: [root-relative file path — source file, config, module, or pipeline artifact] — [what to look for in that file and why it matters]
-
-**Acceptance Criteria:**
-- [ ] [Observable, verifiable condition that must be true when complete]
-- [ ] [Another condition]
-- [ ] [For each NFR carried: the measurable target and its verification method —
-      e.g., "p95 latency ≤ 800 ms at 50 concurrent users, verified by the k6 load test"]
-
-**Output:**
-- [File or directory this ticket produces or modifies, root-relative to the
-  workspace (e.g., `api/src/search/query.ts`), with enough detail that
-  downstream tickets can locate the work]
-- [The test file(s) that prove the acceptance criteria — every ticket with
-  testable criteria lists at least one; name which criterion each test covers]
-
-**Constraints:** [Qualified constraint IDs and brief description, or "None identified"]
-
-**Known Hazards:** [Front-loaded traps the implementer must know *before* starting — or "None identified". This is where decision supersessions, cross-document conflicts, and schema/pattern gotchas live, so they are seen first, not discovered mid-build. Each hazard names what to do about it.]
-- [e.g., "AD-004 supersedes the spec's wording of SR-REQ-006 — rank on the stored score, NOT on recomputed similarity; the spec text is stale"]
-- [e.g., "Spec conflict: SR-REQ-009 and TC-002 disagree on whether a source reference may be a URL — implement per TC-002, flag the conflict in the delivery record's Decisions, do NOT silently reconcile"]
-- [e.g., "`status` has no DB CHECK — enforce the enum at the application layer at every write path"]
-
-**Depends On:** [Other ticket IDs this is blocked by, or "None"]
-**Blocks:** [Other ticket IDs this unblocks, or "None"]
-
-**Size:** [Small / Medium / Large]
-
-**Notes:** [Implementation hints, context, or warnings — optional]
-```
+Write each ticket in the shape of `assets/ticket.md`. Read it before writing and follow it exactly: the state script and its lint read these lines by their exact bold labels. The `# TICKET-NNN: title` heading and the three header lines identify the file; `**Priority:**` orders ready tickets Must → Should → Could by its first word; `**Depends On:**` supplies the TICKET IDs that decide blocked or ready; `**Requirements Covered:**` is read up to the next bold field line or heading, and is what coverage counts. Lint warns when `**Value:**`, `**Prior Art:**`, `**Acceptance Criteria:**`, `**Output:**`, `**Known Hazards:**` or `**Priority:**` is missing.
 
 The three header lines (`**Change:**`, `**Capability Area:**`, `**Specification:**`) make the file self-describing when read alone — which is the point. A withdrawn ticket keeps its file and gains `**Status:** Withdrawn` as the first line after the title.
 
 ### Area backlog — `backlog.md`
 
-````markdown
-# [Capability Area Name] — Backlog ([change-slug])
-
-## Overview
-
-[2-3 sentences summarizing the breakdown. State total ticket count,
-how they cluster, and any notable sequencing from the dependency analysis.]
-
-## Source Context
-
-**Specification:** [Title] · **Constraints Analysis:** [Title, or "Not yet performed"] · **Dependency Map:** [Title, or "Not yet performed"] · **Technical Design:** [Title, or "Not yet performed"]
-**Change brief:** changes/[change-slug]/change.md (Priority Cut applied)
-
-## Ticket Dependency Chain
-
-[Visual representation of ticket ordering]
-
-```
-TICKET-001 ──→ TICKET-003 ──→ TICKET-005
-TICKET-002 ──→ TICKET-004 ──┘
-```
-
-## Suggested Ordering
-
-[Recommended implementation sequence with rationale — weigh priority with
-dependency and risk; a Could ticket never precedes a Must ticket unless a
-dependency forces it]
-
-1. **TICKET-001** — [Why first: foundational, unblocks others, etc.]
-2. **TICKET-002** — [Can parallel with TICKET-001 because...]
-3. ...
-
-## Backlog Summary
-
-| Ticket | Title | Priority | Size | Depends On | Status |
-|--------|-------|----------|------|------------|--------|
-| TICKET-001 | [Title] | Must | Small | None | Ready |
-| TICKET-002 | [Title] | Must | Medium | None | Ready |
-| TICKET-003 | [Title] | Should | Large | TICKET-001 | Blocked |
-| ... | ... | ... | ... | ... | ... |
-
-**Total Tickets:** [Count]
-**Ready to Start:** [Count of tickets with no unresolved dependencies]
-
-*Status here is as of this breakdown. Live status (delivered, reviewed, done) is derived from delivery records and reviews into `.gener8v/pipeline-state.yaml`; this table is not updated as tickets progress.*
-````
+Write it in the shape of `assets/backlog.md`. Read it before writing. The state script only checks that it exists — lint warns on a ticket directory without one — so the file serves people and Delivery's ordering context.
 
 ---
 
@@ -232,7 +141,7 @@ Every ticket must include an **Output** section that describes the files or dire
 
 9. **Size Tickets**: Assign relative size. If any ticket is Large, evaluate whether it can be split without creating artificial boundaries.
 
-9b. **Write Each Ticket File**: As soon as a ticket's fields are complete, write it to its own `TICKET-NNN.md` — title, the three header lines, then the fields in the Output Format order. Do not hold finished tickets back for the backlog; a ticket file that exists is already deliverable.
+9b. **Write Each Ticket File**: As soon as a ticket's fields are complete, write it to its own `TICKET-NNN.md` — title, the three header lines, then the fields in the order of `assets/ticket.md`. Do not hold finished tickets back for the backlog; a ticket file that exists is already deliverable.
 
 10. **Verify Coverage**: Check that every in-scope requirement and NFR appears in at least one ticket. Check that no requirement is orphaned; where the Priority Cut deliberately leaves one out, say so in the Overview. Check that every ticket file opens with the three header lines and has Priority, Value, Prior Art, Output, and Known Hazards sections, and that every ticket carrying an NFR names its verification method in the Acceptance Criteria.
 
@@ -249,6 +158,15 @@ It is at `skills/ticket-breakdown/references/example.md`.
 Read it before producing your first artifact of this kind.
 
 ---
+
+## Troubleshooting
+
+- **A ticket stays `blocked` although the ticket it waits for is delivered.** The state script resolves each `TICKET-NNN` on the `**Depends On:**` line against delivery records for this area in this change only; a qualified reference to another area's or another change's ticket is read as this directory's ticket of the same number. Keep `**Depends On:**` to tickets in this directory, and express a cross-area predecessor through the dependency map's `DEP-` ID and Prior Art, as the worked example does.
+- **Lint reports `requirements in no ticket and no @spec Coverage row`.** A requirement in the living specification is on no ticket in any change. List the missing IDs directly under the covering ticket's `**Requirements Covered:**` — the field is read only up to the next bold field line or heading. A requirement the Priority Cut deliberately leaves out stays in the report; say so in the backlog Overview (Process step 10).
+- **Orchestrate lists a ready ticket after every Could ticket, or with `no priority set`.** `**Priority:**` must start with `Must`, `Should` or `Could`: any other first word sorts last, and a missing line shows as no priority and is counted under `no_priority` in metrics. Take the word from the change brief's Priority Cut.
+- **Lint warns that a ticket file `does not open with '# TICKET-NNN: title'` or lacks a `**Change:**`, `**Capability Area:**` or `**Specification:**` header line.** The file skipped the first lines of `assets/ticket.md`. Add the heading and the three header lines; the heading carries the same ID as the file name.
+- **Lint warns `tickets/<area-slug>/ has no backlog.md`.** Process step 12 writes it last, so a run that stopped after the ticket files leaves the directory without one. Regenerate it from every `TICKET-*.md` in the directory, withdrawn tickets included.
+- **Orchestrate warns `change '<change-slug>' is still Draft but has tickets`.** The brief was never approved. Breakdown is not blocked, but the Priority Cut that set every ticket's Priority has no Product Owner approval on record; present the brief for approval rather than editing its `**Status:**` line.
 
 ## Integration with Other Skills
 

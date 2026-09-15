@@ -1,7 +1,8 @@
 ---
 name: dependencies
-description: "Map dependencies between capability areas, external systems and shared resources into .gener8v/dependencies/dependency-map.md, with phased sequencing, parallelization opportunities and the critical path. Use when a PRD has more than one capability area and implementation order must be decided."
+description: "Map dependencies between capability areas, external systems and shared resources into .gener8v/dependencies/dependency-map.md, with phased sequencing, parallelization opportunities and the critical path. Use when a PRD has more than one capability area and implementation order must be decided, such as 'what order should we build these in', 'what is the critical path' or 'what can run in parallel'. Not for the constraints on one area (constraints) or ordering tickets inside one area (ticket-breakdown)."
 ---
+
 # Dependencies Skill
 
 ## Purpose
@@ -38,107 +39,7 @@ One dependency map per PRD. If the project scope changes significantly (e.g., ne
 
 ## Output Format
 
-Produce a markdown document with the following structure:
-
-```markdown
-# [PRD or Project Title] — Dependency Map
-
-## Overview
-
-[2-3 sentences summarizing the dependency landscape. Call out the total
-number of capability areas analyzed, the most coupled areas, and whether
-a clear critical path exists.]
-
-## Source Context
-
-**Analyzed Documents:** [List PRD and/or Specifications analyzed]
-**Capability Areas:** [Enumerate all capability areas in scope]
-**Status:** [Draft / Approved]
-**Approved by:** [Architect — name, YYYY-MM-DD — or "pending"]
-
-## Internal Dependencies
-
-[Dependencies between capability areas within the same PRD.]
-
-### [Capability Area A] → [Capability Area B]
-
-- **DEP-001**: [What A needs from B, or what must be true about B before A can proceed]
-  - *Type:* [Hard / Soft]
-  - *Nature:* [Data / Behavior / Infrastructure / Shared Resource]
-  - *Detail:* [Specific requirements, data flows, or shared state involved]
-
-## External Dependencies
-
-[Dependencies on systems, services, teams, or resources outside the PRD scope.]
-
-- **EXT-001**: [Capability Area] depends on [External System/Team/Resource]
-  - *Type:* [Hard / Soft]
-  - *Nature:* [API / Data Source / Service / Team / Decision]
-  - *Detail:* [What is needed, current availability, known limitations]
-  - *Related Constraints:* [Constraint IDs from Constraints analysis, if applicable — qualified by their home document, e.g. `search-and-retrieval/IC-001`]
-
-## Shared Resources
-
-[Data stores, services, infrastructure, or concepts that multiple
-capability areas depend on. These are coupling points.]
-
-- **RES-001**: [Shared Resource Name]
-  - *Used By:* [List of capability areas]
-  - *Nature:* [Data Store / Service / Configuration / Concept]
-  - *Implication:* [Why this coupling matters for sequencing or coordination]
-
-## Sequencing Analysis
-
-### Dependency Graph
-
-[Text-based representation of the dependency flow.]
-
-```
-[Capability A] ──→ [Capability C] ──→ [Capability E]
-                         ↑
-[Capability B] ──────────┘
-
-[Capability D] (independent)
-```
-
-### Suggested Sequence
-
-[Ordered list of capability areas based on dependency analysis.]
-
-1. **Phase 1** (no dependencies): [Capability areas that can start immediately]
-2. **Phase 2** (depends on Phase 1): [Capability areas unblocked by Phase 1 completion]
-3. **Phase 3** (depends on Phase 2): [Capability areas unblocked by Phase 2 completion]
-
-### Parallelization Opportunities
-
-- [Capability A] and [Capability D] have no shared dependencies and can proceed in parallel
-- [Capability B] and [Capability C] share [resource] but only [specific aspect], allowing partial overlap
-
-### Critical Path
-
-[The longest chain of dependent capabilities that determines minimum
-sequential duration.]
-
-[Capability X] → [Capability Y] → [Capability Z]
-
-*Rationale:* [Why this is the critical path — what makes each link necessary]
-
-## Risk Dependencies
-
-[Dependencies that are uncertain, fragile, or outside the team's control.]
-
-- **RD-001**: [Dependency statement]
-  - *Risk:* [What happens if this dependency is not met]
-  - *Mitigation:* [Suggested approach to reduce risk]
-
-## Open Questions
-
-- [ ] **OQ-001**: [Question that affects dependency mapping]
-
-## Assumptions
-
-- Assumption: [Statement assumed to be true for this analysis]
-```
+Write the map in the shape of `assets/dependency-map.md`. Read it before writing and follow it exactly. `scripts/gener8v-state.py` reads only the `**Status:**` line in Source Context — a map that is not Approved counts toward approvals pending — so the rest of the structure is for its readers: Technical Design and Ticket Breakdown cite its `DEP-`, `EXT-`, `RES-` and `RD-` IDs.
 
 ---
 
@@ -197,6 +98,14 @@ A full dependency map for the Support Documentation Search System — three capa
 See `references/example.md` (relative to this skill's directory). Read it before producing your first dependency map.
 
 ---
+
+## Troubleshooting
+
+- **Two areas depend on each other.** A cycle has no valid sequence; do not break it by picking an order. Record both `DEP-` entries, flag the cycle as a Risk Dependency, and name what would resolve it — typically a shared contract both areas build against, recorded as a `RES-` entry, or one area's requirements split across phases. A sequence drawn through an unresolved cycle hides the real blocker (Notes).
+- **Two areas write the same data and neither specification says which owns it.** Record a `RES-` entry with both areas under *Used By*, and an Open Question. Ownership is a component boundary, decided in Technical Design; the map makes the coupling visible, it does not settle it.
+- **The dependency order conflicts with the change brief's Priority Cut.** The map orders by dependency only (Notes): a Must area that hard-depends on a Could area still waits for it. State the conflict under Sequencing Analysis instead of reordering phases; Ticket Breakdown weighs priority against the order, and the Product Owner decides whether the Could area moves up the cut.
+- **Re-running after areas were added or specifications landed.** Load the existing map first (Process step 0b). Rewriting the analysis is fine; renumbering is not — tickets cite `DEP-`, `EXT-` and `RES-` IDs, so existing IDs stay, new ones go above the maximum, and a dependency that no longer holds is marked `**Status:** Withdrawn` in place.
+- **Orchestrate recommends a dependency map for a small project.** The recommendation is marked optional for light scope. Run the map when areas share data or depend on an external system; otherwise Orchestrate's scale step lists it as skipped with the reason, and Ticket Breakdown proceeds without it.
 
 ## Integration with Other Skills
 

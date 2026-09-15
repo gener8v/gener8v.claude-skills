@@ -1,8 +1,10 @@
 ---
 name: security-review
-description: "OWASP-informed, code-level security review of delivered code: injection, authentication and authorization, data exposure, configuration, dependencies, cryptography and logging, with attack scenarios for Medium+ findings and compliance constraints (CC-XXX) treated as Critical. Use after a delivery, especially for input handling, auth, sensitive data or external integrations."
-argument-hint: "<capability area> <TICKET-XXX> [in <change-slug>] | <files>"
+description: "OWASP-informed, code-level security review of delivered code: injection, authentication and authorization, data exposure, configuration, dependencies, cryptography and logging, with attack scenarios for Medium+ findings and compliance constraints (CC-XXX) treated as Critical. Use after a delivery, especially one touching input handling, auth, sensitive data or external integrations, such as 'security review TICKET-007' or 'check what this delivery shipped for injection or auth bypass before we merge'. Not for a whole-codebase OWASP posture assessment (owasp-top10-review) or prompt-injection risk in LLM features (owasp-llm-top10-review)."
+argument-hint: "[capability area] [TICKET-XXX] [in change-slug] | [files]"
+effort: xhigh
 ---
+
 # Security Review Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -56,83 +58,7 @@ The report is written as soon as findings are drafted (all `Open`) and updated f
 
 ## Output Format
 
-Produce a markdown document with the following structure:
-
-```markdown
-# [Ticket ID]: [Ticket Title] — Security Review
-
-## Summary
-
-[2-3 sentences: what was reviewed, overall security posture, finding count by severity.]
-
-**Files Reviewed:**
-- [root-relative file path]
-- [root-relative file path]
-
-**Findings:** [Total count]
-**Critical:** [Count] | **High:** [Count] | **Medium:** [Count] | **Low:** [Count] | **Informational:** [Count]
-
-## Security Assessment
-
-### Input Validation
-
-**Status:** [Adequate / Gaps Found / Not Applicable]
-**Notes:** [Assessment of input validation coverage at all entry points.
-What inputs are validated, what is missing, what vectors exist.]
-
-### Authentication & Authorization
-
-**Status:** [Adequate / Gaps Found / Not Applicable]
-**Notes:** [Assessment of auth patterns. Are auth checks present where needed?
-Are authorization boundaries enforced? Are sessions handled securely?]
-
-### Data Protection
-
-**Status:** [Adequate / Gaps Found / Not Applicable]
-**Notes:** [Assessment of sensitive data handling. Is PII protected?
-Are credentials stored securely? Is data encrypted in transit/at rest where required?]
-
-### Configuration Security
-
-**Status:** [Adequate / Gaps Found / Not Applicable]
-**Notes:** [Assessment of hardcoded secrets, environment configuration,
-security-relevant defaults, CORS settings, security headers.]
-
-## Findings
-
-### SEC-001: [Finding title]
-
-**Severity:** [Critical / High / Medium / Low / Informational]
-**Category:** [Injection / Authentication / Authorization / Data Exposure / Misconfiguration / Dependency / Input Validation / Cryptography / Logging / Session Management]
-**OWASP Reference:** [OWASP Top 10:2025 category, e.g. A05:2025 Injection — or "N/A" if not directly mapped]
-**Location:** [root-relative path:line or function — `api/src/search/query.ts:42`, never relative to a repository inside a workspace]
-**Description:** [What the vulnerability or concern is]
-**Attack Scenario:** [How this could be exploited — required for Medium+ severity]
-**Impact:** [What happens if exploited — data loss, unauthorized access, etc.]
-**Recommendation:** [Specific remediation with code example if helpful]
-**Compliance Impact:** [CC-XXX constraint IDs affected, if any, or "None"]
-**Status:** [Open / Resolved / Accepted Risk / Deferred → TICKET-NNN or reason / Dismissed]
-**Risk accepted by:** [Security — <name>, YYYY-MM-DD — required when Status is Accepted Risk; omit otherwise]
-**Resolution:** [What was done, if resolved — filled in during resolution; for an accepted risk, the rationale and compensating controls]
-
----
-
-### SEC-002: ...
-
-## Resolution Log
-
-| Finding | Decision | Action Taken | Risk Accepted | File Updated |
-|---------|----------|-------------|---------------|--------------|
-| SEC-001 | [Decision] | [What was changed] | [Yes/No] | [File path] |
-| SEC-002 | Accepted Risk | — | Yes | — |
-
-## Verdict
-
-**Result:** [Approved / Approved with Notes / Changes Required]
-**Unresolved Critical/High:** [Count — must be 0 for an Approved variant]
-**Accepted Risks:** [Count, with brief summary of what was accepted]
-**Notes:** [Any conditions on the approval or follow-up actions]
-```
+Write the report in the shape of `assets/security-review-report.md` — Read it before writing and follow it exactly, headings and status lines included. `gener8v-state.py` parses its `**Result:**` line for the verdict and counts its `### SEC-NNN` headings and `**Severity:**` lines for the metrics, so none of the three may be renamed or reformatted.
 
 ---
 
@@ -234,6 +160,14 @@ Logging that includes PII, credentials, session tokens, full request/response bo
 A worked example — the findings-phase report for Search & Retrieval TICKET-002 (semantic index) in change `support-search`, with one Medium and one Informational finding, followed by the resolution excerpt that records an accepted risk — is in `references/example.md`. Read it before producing your first security review report.
 
 ---
+
+## Troubleshooting
+
+- **Orchestrate still lists the security review as missing after the report was written.** The state script opens exactly `.gener8v/changes/<change-slug>/reviews/<area-slug>-ticket-nnn-security-review.md` — area slug, lowercase `ticket-nnn`, inside the ticket's change. The top-level `.gener8v/reviews/` holds system assessments and is never searched for a ticket's review. Move or rename the file; never leave two copies.
+- **No dependency audit tool can run** — `npm audit`, `pip-audit` or `cargo audit` is not installed, or there is no lockfile. Say so under the dependency check with the tool that was tried. Silence reads as a clean audit, and Orchestrate dates the next security re-check from the last dependency audit a review recorded.
+- **A finding's severity turns on a control outside the workspace** — a gateway that authenticates, a WAF, network policy in another repository. Do not assume it exists. Rate from what the code shows, name the assumed control in the attack scenario, and let resolution record it: a control confirmed by the user becomes an accepted risk with its `**Risk accepted by:**` line, not a silently lowered severity.
+- **The user wants a Critical or High accepted before resolution.** Acceptance belongs to the Security role at step 13, written on the finding with its rationale. The findings phase — and the `security-reviewer` agent — leaves every finding `Open`, however obvious the acceptance looks.
+- **The `security-reviewer` agent returned without a report path.** The findings phase ends at step 12 by writing the report; an agent that stops at its turn limit returns partial output instead. Resume or re-launch it on the same ticket, or run steps 1–12 in the main session, before starting step 13.
 
 ## Integration with Other Skills
 

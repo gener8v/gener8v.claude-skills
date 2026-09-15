@@ -1,10 +1,12 @@
 ---
 name: defect-sweep
-description: "Sweep an existing subsystem's perimeter for defect classes nobody is looking for — inherited defaults, sibling writers, incomplete gates, fail-open error paths, silent truncation, stale assertions, identity confusion, time-based inference, unasked authorization — with proof per finding, at .gener8v/sweeps/. Use after a burst of changes, before a launch, or when a found defect may have siblings. Runs as a fresh-context pass."
-argument-hint: "<subsystem, directory or entry point>"
+description: "Fresh-context sweep of an existing subsystem's perimeter for defect classes nobody is looking for (inherited defaults, sibling writers, incomplete gates, fail-open error paths, silent truncation, stale assertions, identity confusion, time-based inference, unasked authorization), with proof per finding, at .gener8v/sweeps/. Use after a burst of changes, before a launch, or when a found defect may have siblings, such as 'are there more bugs like this one' or 'sweep the billing module'. Not for one delivery (code-review), decay over time (rot-watch) or pipeline documents (audit)."
+argument-hint: "[subsystem, directory or entry point]"
 context: fork
 agent: defect-sweeper
+effort: xhigh
 ---
+
 # Defect Sweep Skill
 
 **Invoked with:** `$ARGUMENTS`
@@ -69,47 +71,7 @@ circumstance, and carries the evidence that makes it checkable rather than plaus
 
 ## Output Format
 
-```markdown
-# [Subsystem]: Defect Sweep
-
-## Scope
-
-What was swept, and what was deliberately not. A sweep that does not say where it stopped
-reads as a clean bill of health for code nobody opened.
-
-## Findings
-
-### DS-001: [Consequence, as a sentence — not a category]
-
-**What breaks.** One or two sentences, consequence first.
-
-**Mechanism.** The code path, with file:line. Why it happens, not merely that it does.
-
-**Circumstance.** What has to be true for this to fire. A defect that needs an impossible
-state is a note; one that needs a Friday afternoon is a finding.
-
-**Proof.** How to see it: a failing test, a query, a reproduction. If a fix is proposed,
-state what breaks when the fix is removed.
-
-**Class.** One of the classes in `references/defect-classes.md`.
-
-### DS-002: ...
-
-## Swept and clean
-
-The classes checked that turned up nothing, named explicitly. Silence is ambiguous —
-a reader cannot tell "checked and fine" from "never looked".
-
-## Verdict
-
-What should be fixed now, what can wait, and what needs a decision rather than a fix.
-Findings to fix now become tickets (see Integration); name them here as `DS-XXX → ticket`,
-and name the change they go into.
-
-## Since the last sweep (if any)
-
-[Earlier findings fixed / still open / new this time.]
-```
+Write the sweep in the shape of `assets/sweep-report.md` — Read it before writing and follow it exactly, section order included. `gener8v-state.py metrics` counts its `### DS-NNN` headings as sweep findings, so keep that heading form; `Swept and clean` and `Scope` are what make the sweep's boundary legible, so neither is optional.
 
 ## Defect Classes
 
@@ -204,6 +166,26 @@ the pipeline: two proven findings — a time-based inference that dead-letters p
 incomplete gate found through a stale assertion — the classes swept clean, and a Verdict that
 opens a `fix-<subsystem-slug>` change for the tickets. It lives at `references/example.md`
 (relative to this skill's directory). Read it before producing your first artifact of this kind.
+
+## Troubleshooting
+
+- **The sweep covered the wrong code, or all of it.** The `defect-sweeper` agent sees this skill and
+  its arguments, not the conversation that led here. "Sweep billing" after an hour on the webhook
+  handler sweeps all of billing. Put the boundary in the argument — the entry point or directory, and
+  what is out of scope: `/gener8v:defect-sweep api/billing/webhooks — not the invoice renderer`.
+- **The agent came back asking which subsystem to sweep.** The argument was empty, and a fork cannot
+  recover the target from the conversation. Re-invoke with the subsystem named; do not answer the
+  question in the main session and expect the agent to hear it.
+- **A finding cannot be proven here** — no test runner, no database, no way to reproduce. Keep it only
+  as a hypothesis, labelled as one, with the proof written as the falsifiable claim someone with the
+  environment can run. Step 5 already downgrades it; the report must not let it read as proven.
+- **Since the last sweep came out empty although the subsystem was swept before.** The carry-forward
+  reads `.gener8v/sweeps/<subsystem-slug>-sweep.md`; a sweep under a different slug starts a second
+  file and loses the history. Reuse the slug already in `.gener8v/sweeps/`; if the subsystem was
+  renamed, read the old file for the carry-forward and say so under Scope.
+- **Orchestrate's metrics show fewer sweep findings than the sweep has.** `gener8v-state.py metrics`
+  counts headings that match `### DS-` plus at least three digits. `### DS-1`, `## DS-001` or a
+  finding without its own heading is not counted — keep the heading form in `assets/sweep-report.md`.
 
 ## Integration with Other Skills
 

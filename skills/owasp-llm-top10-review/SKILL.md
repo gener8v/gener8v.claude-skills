@@ -1,8 +1,11 @@
 ---
 name: owasp-llm-top10-review
-description: "OWASP Top 10 for LLM Applications 2025 assessment of anything that calls a model: direct and indirect prompt injection, sensitive disclosure, output handling, excessive agency, system-prompt leakage, vector and embedding weaknesses, unbounded consumption. Use for chat, RAG, agentic or LLM-orchestration code, alongside the web OWASP review."
+description: "OWASP Top 10 for LLM Applications 2025 assessment of anything that calls a model: direct and indirect prompt injection, sensitive disclosure, output handling, excessive agency, system-prompt leakage, vector and embedding weaknesses, unbounded consumption. Use for chat, RAG, agentic or LLM-orchestration code, alongside the web OWASP review, such as 'can someone smuggle instructions in through retrieved documents' or 'is our chatbot safe to launch'. Not for systems that make no model calls (owasp-top10-review) or one delivered ticket (security-review)."
 argument-hint: "[system slug]"
+context: fork
+effort: xhigh
 ---
+
 # OWASP LLM Top 10 Review Skill
 
 ## Purpose
@@ -122,6 +125,14 @@ Same rule as the other review skills: who, what access, what they achieve.
 > **LLM10 — Unbounded Consumption · Gaps.** Per-call `max_tokens` exists, but nothing caps total tokens/$ per audit, engagement, or tenant, and no run aborts on cost. Cost is tracked post-hoc, never enforced. With public exposure + no rate limit → denial-of-wallet. → **SEC-019 (Medium)**.
 >
 > **LLM01 — Prompt Injection · Gaps.** Naive `{{var}}` substitution of tenant input (SEC-008, info) *and* of web-search-retrieved page content (SEC-020, Medium — an attacker who ranks a page for the target entity injects instructions into the model's context). Structured-output constrains the blast radius but does not remove it.
+
+## Troubleshooting
+
+- **Step 1 found no LLM-touching code, but the system does call a model.** Model calls often hide behind a gateway, an in-house client wrapper, a plain HTTP call to an inference endpoint, or another repository in the workspace. Before stopping, grep for provider SDK imports, chat or completion endpoint paths and gateway hostnames, and check `context.md`'s `## Repositories` table. When there is genuinely none, stop without writing an assessment and recommend the OWASP Top 10 (web) Review.
+- **The assessment covered the wrong system, or missed the surface the user cared about.** This skill runs in a forked subagent that sees the skill and its arguments, not the conversation. Put the system slug and the surface — the RAG ingestion path, the agent's tool set — in the argument. The slug names the report `.gener8v/reviews/<slug>-owasp-llm-top10-assessment.md`; Orchestrate finds assessments in `.gener8v/reviews/` by their `-assessment.md` suffix, so keep the name exact.
+- **Prompt templates live outside the code** — a prompt-management service, a bucket, another repository. LLM01 and LLM07 then rest on templates this run could not read. Name them, assess the assembly code that is visible, and mark both categories as partial rather than clean.
+- **There is no cost tracking or budget enforcement at all.** That absence is the LLM10 finding, not "not applicable". Rate it by what a caller can make the system spend, as in the example.
+- **Two different findings are both `SEC-001`.** Numbering restarts per report. Cite qualified IDs throughout — `<change-slug>/<report-slug>/SEC-XXX` for ticket reviews, `<slug>-owasp-top10-assessment/SEC-XXX` for the web assessment, `<slug>-owasp-llm-top10-assessment/SEC-XXX` for this one.
 
 ## Integration with Other Skills
 
