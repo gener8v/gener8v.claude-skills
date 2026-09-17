@@ -47,7 +47,8 @@ VERDICT_BLOCKING = {"changes required", "improvements required", "remediation re
 VERDICT_OK = {"approved", "approved with notes", "approved with observations", "approved with suggestions", "approved with accepted risk"}
 PRIORITY_ORDER = {"must": 0, "should": 1, "could": 2}
 SOURCE_EXT = (".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".java", ".kt", ".rb", ".php", ".cs", ".swift", ".c", ".cc", ".cpp", ".h", ".scala", ".ex", ".exs", ".sql", ".sh")
-SKIP_DIRS = {".git", "node_modules", ".gener8v", "dist", "build", "vendor", ".venv", "venv", "__pycache__", ".claude", "target", ".next"}
+SKIP_DIRS = {".git", "node_modules", ".gener8v", "dist", "build", "vendor", ".venv", "venv", "__pycache__", ".claude", "target", ".next",
+             ".mypy_cache", ".ruff_cache", ".pytest_cache", ".tox", ".nox", "htmlcov", "coverage", ".turbo"}
 REVIEW_KINDS = ("code", "quality", "security")
 
 # --------------------------------------------------------------------------- helpers
@@ -65,6 +66,11 @@ def read(path):
         with open(path, encoding="utf-8") as fh:
             return fh.read()
     except OSError:
+        return ""
+    except UnicodeDecodeError:
+        # A binary file reached by the lint walk — a tool cache, a compiled artifact, a
+        # database. SKIP_DIRS covers the common directories, but files such as `.coverage`
+        # sit loose at a package root, so the guard has to be here as well.
         return ""
 
 
