@@ -30,7 +30,9 @@ Building and sweeping are different modes. A builder verifies the thing they mad
 incurious about its neighbours — which is exactly the blind spot this skill exists to
 cover, and why it runs as a fresh pass rather than folded into Delivery: this skill's
 frontmatter forks it into the `defect-sweeper` agent, so the sweep never inherits the
-builder's context. The agent writes the sweep and returns; the user reads it in the main
+builder's context. It runs on that agent's model (opus · high, the `review-security` default); to follow a
+different route set in Tower, start the `defect-sweeper` agent yourself on the route for `review-security`
+(CONVENTIONS §13). The agent writes the sweep and returns; the user reads it in the main
 session.
 
 ## When to Use

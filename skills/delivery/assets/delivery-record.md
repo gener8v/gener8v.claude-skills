@@ -31,6 +31,7 @@
 
 **Repository:** [directory from `context.md`'s `## Repositories` table — `.` for a single repository; its verify commands and the commit belong to it. An atomic ticket that must touch two repositories names both.]
 **Plan approved by:** [Engineer — <name>, YYYY-MM-DD — or `pending` until Phase 2 approval]
+**Implemented by:** [the model that wrote the code, from the ticket's route (CONVENTIONS §13): `<model> · <effort> — routed as deliver-small|deliver-large from Tower|the defaults`, or `the session's model`]
 
 [The plan as approved by the user in Phase 2. Preserved verbatim so
 deviations can be compared against the original intent. Written the moment it is approved.]

@@ -2,8 +2,8 @@
 name: security-reviewer
 description: Independent gener8v Security Review of one delivered ticket — OWASP-informed, code-level; attack scenarios for Medium+; compliance constraints (CC-XXX) auto-Critical; writes the report with findings left Open. Use after a delivery, in parallel with code-reviewer and quality-reviewer.
 tools: Read, Grep, Glob, Bash, Write
-model: inherit
-effort: xhigh
+model: opus
+effort: high
 maxTurns: 200
 skills:
   - gener8v:security-review

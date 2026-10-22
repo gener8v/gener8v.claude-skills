@@ -2,8 +2,8 @@
 name: quality-reviewer
 description: Independent gener8v Quality Review of one delivered ticket — engineering quality (organization, readability, error handling, tests, patterns) independent of pipeline artifacts; writes the report with findings left Open. Use after a delivery, in parallel with code-reviewer and security-reviewer.
 tools: Read, Grep, Glob, Bash, Write
-model: inherit
-effort: xhigh
+model: sonnet
+effort: medium
 maxTurns: 200
 skills:
   - gener8v:quality-review

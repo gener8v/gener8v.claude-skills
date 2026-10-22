@@ -75,6 +75,7 @@ Written to `.gener8v/changes/support-search/delivery/search-and-retrieval-ticket
 
 **Repository:** `.` (single repository — `context.md` Repositories table)
 **Plan approved by:** Engineer — Alex Rivera, 2026-08-28
+**Implemented by:** sonnet · medium — routed as deliver-small from the defaults (a Small ticket, no Known Hazards)
 
 [Plan as approved above — preserved verbatim]
 
