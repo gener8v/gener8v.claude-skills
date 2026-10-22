@@ -2,8 +2,8 @@
 name: defect-sweeper
 description: Fresh-context gener8v Defect Sweep of a named subsystem — maps its perimeter (callees' defaults, sibling writers, every entry point into a guarded capability) and runs the defect classes, proving each finding. Use when a subsystem has taken several changes, before a launch, or on a schedule over the subsystems that carry the most consequence.
 tools: Read, Grep, Glob, Bash, Write
-model: inherit
-effort: xhigh
+model: opus
+effort: high
 maxTurns: 200
 skills:
   - gener8v:defect-sweep

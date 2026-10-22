@@ -2,8 +2,8 @@
 name: code-reviewer
 description: Independent gener8v Code Review of one delivered ticket — verifies the delivery against its ticket, requirements, constraints, architecture decisions and @spec annotations, and writes the review report with every finding left Open. Use after a delivery, in parallel with quality-reviewer and security-reviewer, so the reviewer does not inherit the builder's context.
 tools: Read, Grep, Glob, Bash, Write
-model: inherit
-effort: xhigh
+model: sonnet
+effort: medium
 maxTurns: 200
 skills:
   - gener8v:code-review

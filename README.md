@@ -222,6 +222,22 @@ python3 "$S" split-tickets      # migrate per-area ticket files to one file per 
 
 Periodic work — sweeps over high-consequence subsystems, dependency-vulnerability re-checks, posture reviews at milestones — is a good use of a scheduled routine (`/schedule`) or a cron-driven session. Orchestrate names the triggers; the cadence is the project's decision, so the plugin ships no schedule.
 
+## Model routing
+
+Each kind of pipeline work runs on the Claude model that suits it: planning, design and security reviews on Opus;
+ticket breakdown, small deliveries and code and quality reviews on Sonnet; codebase searches and status on Haiku.
+The rule and the full table are in `CONVENTIONS.md` §13.
+
+- **Delivery** routes its writing by the ticket: a Small ticket, or a Medium one with no Known Hazards and no
+  compliance constraint, is written by a subagent on the `deliver-small` model; anything larger on the
+  `deliver-large` one. The main session still verifies, annotates and finishes the record, which says which model
+  wrote the code (`**Implemented by:**`).
+- **The reviewer agents** start on their route; without one they fall back to their own model (code and quality
+  reviewers on Sonnet, the security reviewer and the defect sweeper on Opus).
+- **With the [Tower](https://github.com/gener8v/gener8v.tools.tower) reporter**, the routing comes from Tower's
+  Model routing page, for every project or one, through the reporter's `routing` tool; without it the skills use
+  the defaults. The main session's own model is never changed.
+
 ## Design Principles
 
 - **Functional over technical** — describe what, not how (except where constraints and technical design are the focus)

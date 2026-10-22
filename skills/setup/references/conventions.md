@@ -213,3 +213,32 @@ was done, not what could be.
 
 Skill bodies describe the method. Client systems, product names, decision-log IDs from a particular
 engagement and real dataset names belong in an example file, not in the rules an agent will generalise from.
+
+## 13. Model routing
+
+Each kind of pipeline work runs on the Claude model that suits it: judgment on the strongest, well-specified work
+on a faster one. Before you start a pipeline step's subagent (a reviewer agent, a sweep, a delivery's
+implementation), find its kind below and ask for its route:
+
+- **With the Tower reporter** (`mcp__tower-reporter__routing` is available): call it with `{ "kind": "<kind>" }`
+  and use `route.model` and `route.effort` as the subagent's `model` and `effort`. The routing is set in Tower,
+  for every project or this one; follow it even where it differs from the defaults.
+- **Without it:** use the default in the table.
+
+`inherit` (or an effort of `null`) means pass nothing: the subagent runs on the session's own. A route never
+changes the main session's model, and the conversation with the user stays on it.
+
+| Kind | Work | Default |
+|---|---|---|
+| `plan` | Planning, Specification, Technical Design, Architecture Review, Flow Mapping, Brownfield | opus · high |
+| `breakdown` | Ticket Breakdown, Audit, Constraints, Dependencies | sonnet · medium |
+| `deliver-large` | Delivery of a Large ticket, or a Medium one with Known Hazards or a compliance constraint (CC-XXX) | opus · high |
+| `deliver-small` | Delivery of a Small ticket, or a Medium one with neither | sonnet · medium |
+| `review` | Code Review, Quality Review, Rot Watch | sonnet · medium |
+| `review-security` | Security Review, OWASP Top 10, OWASP LLM Top 10, Defect Sweep | opus · high |
+| `explore` | Searching and reading the codebase for any step | haiku · low |
+| `status` | Orchestrate, quick summaries | haiku · low |
+
+Skills that run in the main session (Planning, Specification, Ticket Breakdown and the rest of the planning
+stages) stay on the session's model; their route applies when they hand work to a subagent. Record the model
+that did the work where the artifact has a place for it (a delivery record's `**Implemented by:**`).
